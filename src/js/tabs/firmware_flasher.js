@@ -20,6 +20,8 @@ TABS.firmware_flasher.initialize = function (callback) {
     self.isConfigLocal = false;
     self.intel_hex = undefined;
     self.parsed_hex = undefined;
+    self.jsonData = undefined;
+    self.remap = undefined;
 
     var unifiedSource = 'https://api.github.com/repos/rotorflight/rotorflight-targets/contents/configs';
 
@@ -37,6 +39,63 @@ TABS.firmware_flasher.initialize = function (callback) {
         FirmwareCache.load();
         FirmwareCache.onPutToCache(onFirmwareCacheUpdate);
         FirmwareCache.onRemoveFromCache(onFirmwareCacheUpdate);
+        
+        $('div.remapping_info .target').text("Not loaded");
+        $('div.remapping_info .MCU').text("Not loaded");
+
+        function loadTimerJson(MCU) {
+            $.getJSON('./resources/jsonschema/STM32_timers.json', function(data) {
+                console.log("loadTimerJson: MCU = ", MCU);
+
+                switch(MCU) {
+                    case "STM32F411": 
+                        self.jsonData = data.STM32F411;
+                        break;
+                    case "STM32F405": 
+                        self.jsonData = data.STM32F405;
+                        break;
+                    case "STM32F7X2": 
+                        self.jsonData = data.STM32F7X2;
+                        break;
+                    case "STM32F745": 
+                        self.jsonData = data.STM32F745;
+                        break;
+                    case "STM32H743": 
+                        self.jsonData = data.STM32H743;
+                        break;
+                    case "STM32G47X": 
+                        self.jsonData = data.STM32G474
+                        break;
+                };
+
+            }).fail(function(){
+                console.log("Error reading Timers file.");
+            });
+        }
+
+        function displayTimers() {
+            console.log("displayTimers()")
+            let Pin;
+            const timerBox = $('.tab-firmware_flasher .timer');
+            for (let j = 0; j < 8; ++j) {
+                Pin = $('.tab-firmware_flasher .Pin').eq(j).text();
+                if (Pin == "") {
+                    for (let i = 0; i < 8; ++i) {
+                        timerBox.eq(i+j*9).text("") ;
+                    };
+                } else {
+                    $.each(self.jsonData, function(key, val) {
+                        if (key == Pin) {
+                            timerBox.each(function(i, li) {
+                            for (let i = 0; i < 8; ++i) {
+                                timerBox.eq(i+j*9).text(val[i]) ;
+                            };
+                            });
+                        };
+                    });
+                };    
+            };
+        }
 
         function parse_hex(str, callback) {
             // parsing hex in different thread
@@ -62,6 +121,11 @@ TABS.firmware_flasher.initialize = function (callback) {
             } else {
                 $('div.release_info #manufacturerInfo').hide();
             }
+                $('div.remapping_info .target').text(TABS.firmware_flasher.selectedBoard);
+                $('div.remapping_info .MCU').text(summary.file.substring(summary.file.length-13,summary.file.length-4)).prop('href', summary.url);    
+                loadTimerJson($('div.remapping_info .MCU').text());
+                displayTimers();
+
             $('div.release_info .target').text(TABS.firmware_flasher.selectedBoard);
             $('div.release_info .name').text(summary.version).prop('href', summary.releaseUrl);
             $('div.release_info .date').text(summary.date);
@@ -428,9 +492,9 @@ TABS.firmware_flasher.initialize = function (callback) {
                 const pattern = /.+\/ (STM32[^ ]*)/;
                 const matches = config.match(pattern);
                 bareBoard = matches[1];
+                console.log('grabBuildNameFromConfig (): ', bareBoard);
             } catch (e) {
                 bareBoard = undefined;
-                console.log('grabBuildNameFromConfig failed: ', e.message);
             }
             return bareBoard;
         }
@@ -494,6 +558,7 @@ TABS.firmware_flasher.initialize = function (callback) {
 
                 $('div.git_info').slideUp();
                 $('div.release_info').slideUp();
+                displayTimers();
 
                 if (!self.localFirmwareLoaded) {
                     self.enableFlashing(false);
@@ -564,6 +629,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                                     $.get(unifiedConfig.download_url, function(targetConfig) {
                                         console.log('got unified config');
 
+                                        let remap = remapConfigFile(targetConfig);
                                         let config = cleanUnifiedConfigFile(targetConfig);
                                         if (config !== null) {
                                             const bareBoard = grabBuildNameFromConfig(config);
@@ -956,6 +1022,44 @@ TABS.firmware_flasher.initialize = function (callback) {
             }
         }).change();
 
+        // Pk - Add more onclick events 
+
+        $('.tab-firmware_flasher .timer').click(function(e) {
+            const target = $(e.target);
+//            console.log(target.index());
+
+            const setTimer = $('.tab-firmware_flasher .timer');
+            const timerSet = target.index('.timer');
+            const range = (timerSet-timerSet%9);
+
+            setTimer.each(function(i, li) {
+
+                if ((range<= i)&&(i <=range+9)) {
+                    if (i==timerSet) {
+                        setTimer.eq(i).addClass("isChecked");
+                    } else {
+                        setTimer.eq(i).removeClass("isChecked");
+                    };
+                }; 
+            });
+
+        });
+
+        $('.tab-firmware_flasher .remap').change(function(e) {
+            const target = $(e.target);
+            const Remap = (target.val());
+            const pinBox = $('.tab-firmware_flasher .Pin');
+            pinBox.eq(target.index('.remap')).text(Remap) ;
+            loadTimerJson($('div.remapping_info .MCU').text());
+            displayTimers();
+        });
+
+        $('div.remapping_info .MCU').change(function() {
+            console.log("MCU changed". $('div.remapping_info .MCU').text());
+            loadTimerJson($('div.remapping_info .MCU').text());
+            displayTimers();
+        });
+
         $('a.flash_firmware').click(function () {
             if (!$(this).hasClass('disabled')) {
                 startFlashing();
@@ -1026,13 +1130,14 @@ TABS.firmware_flasher.initialize = function (callback) {
             }
         }).change();
 
-        $(document).keypress(function (e) {
+        // PK removed enter to load
+/*        $(document).keypress(function (e) {
             if (e.which == 13) { // enter
                 // Trigger regular Flashing sequence
                 $('a.flash_firmware').click();
             }
         });
-
+*/
         self.flashingMessage(i18n.getMessage('firmwareFlasherLoadFirmwareFile'), self.FLASH_MESSAGE_TYPES.NEUTRAL);
 
         // Update Firmware button at top

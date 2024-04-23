@@ -71,6 +71,314 @@
                     i18n="firmwareFlasherMessage"></strong> <span class="message"></span>
             </p>
         </div>
+        <div class="remapping_info gui_box">
+            <div class="darkgrey_box gui_box_titlebar">
+                <div class="spacer_box_title" style="text-align: center;"
+                    i18n="firmwareFlasherRemappingSummaryHead"></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col">
+                    <div class="spacer" style="margin-bottom: 10px;">
+                        <div class="margin-bottom">
+                            <strong i18n="firmwareFlasherReleaseTarget"></strong>
+                            <span class="target" id="target_name" ></span>
+                            <br />
+
+                            <strong i18n="firmwareFlasherRemapMCU"></strong>
+                            <span class="MCU" id="MCU_name" ></span>
+                           <!-- <a i18n_title="firmwareFlasherRemapMCUUrl" class="file" href="#" target="_blank"></a>-->
+                            <br />
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-col col9">
+                    <div class="gui_box grey">
+                        <table class="parameter cf">
+                            <tbody class="remap_table">
+                                <tr>
+                                    <td name="option_type">
+                                    </td>
+                                    <td name="pin_select">
+                                        <label>FC pad</label>
+                                    </td>
+                                    <td name="pin">
+                                        <label>Pin</label>
+                                    </td>
+                                    <td name="option1" class="option">
+                                        <label>Option 1</label>
+                                    </td>
+                                    <td name="option2" class="option">
+                                        <label>Option 2</label>
+                                    </td>
+                                    <td name="option3" class="option">
+                                        <label>Option 3</label>
+                                    </td>
+                                    <td name="option4" class="option">
+                                        <label>Option 4</label>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td name="motor_1">
+                                        <label>Motor 1</label>
+                                    </td>
+                                    <td name="m1_remap">
+                                        <select id="l1Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="m1_pin" class="Pin" ></td>
+                                    <td class='timer' id="1_Op1" ></td>
+                                    <td class='timer' id="1_Op2" ></td>
+                                    <td class='timer' id="1_Op3" ></td>
+                                    <td class='timer' id="1_Op4" ></td>
+                                    <td class='timer' id="1_Op5" ></td>
+                                    <td class='timer' id="1_Op6" ></td>
+                                    <td class='timer' id="1_Op7" ></td>
+                                    <td class='timer' id="1_Op8" ></td>
+                                    <td class='timer' id="1_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="motor_2">
+                                        <label>Motor 2</label>
+                                    </td>
+                                    <td name="m2_remap">
+                                        <select id="l2Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="m2_pin" class="Pin" ></td>
+                                    <td class='timer' id="2_Op1" ></td>
+                                    <td class='timer' id="2_Op2" ></td>
+                                    <td class='timer' id="2_Op3" ></td>
+                                    <td class='timer' id="2_Op4" ></td>
+                                    <td class='timer' id="2_Op5" ></td>
+                                    <td class='timer' id="2_Op6" ></td>
+                                    <td class='timer' id="2_Op7" ></td>
+                                    <td class='timer' id="2_Op8" ></td>
+                                    <td class='timer' id="2_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="servo_1">
+                                        <label>Servo 1</label>
+                                    </td>
+                                    <td name="S1_remap">
+                                        <select id="S1Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="S1_pin" class="Pin" ></td>
+                                    <td class='timer' id="S1_Op1" ></td>
+                                    <td class='timer' id="S1_Op2" ></td>
+                                    <td class='timer' id="S1_Op3" ></td>
+                                    <td class='timer' id="S1_Op4" ></td>
+                                    <td class='timer' id="S1_Op5" ></td>
+                                    <td class='timer' id="S1_Op6" ></td>
+                                    <td class='timer' id="S1_Op7" ></td>
+                                    <td class='timer' id="S1_Op8" ></td>
+                                    <td class='timer' id="S1_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="servo_2">
+                                        <label>Servo 2</label>
+                                    </td>
+                                    <td name="S2_remap">
+                                        <select id="S2Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="S2_pin" class="Pin" ></td>
+                                    <td class='timer' id="S2_Op1" ></td>
+                                    <td class='timer' id="S2_Op2" ></td>
+                                    <td class='timer' id="S2_Op3" ></td>
+                                    <td class='timer' id="S2_Op4" ></td>
+                                    <td class='timer' id="S2_Op5" ></td>
+                                    <td class='timer' id="S2_Op6" ></td>
+                                    <td class='timer' id="S2_Op7" ></td>
+                                    <td class='timer' id="S2_Op8" ></td>
+                                    <td class='timer' id="S2_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="servo_3">
+                                        <label>Servo 3</label>
+                                    </td>
+                                    <td name="S3_remap">
+                                        <select id="S3Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="S3_pin" class="Pin" ></td>
+                                    <td class='timer' id="S3_Op1" ></td>
+                                    <td class='timer' id="S3_Op2" ></td>
+                                    <td class='timer' id="S3_Op3" ></td>
+                                    <td class='timer' id="S3_Op4" ></td>
+                                    <td class='timer' id="S3_Op5" ></td>
+                                    <td class='timer' id="S3_Op6" ></td>
+                                    <td class='timer' id="S3_Op7" ></td>
+                                    <td class='timer' id="S3_Op8" ></td>
+                                    <td class='timer' id="S3_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="servo_4">
+                                        <label>Servo 4</label>
+                                    </td>
+                                    <td name="S4_remap">
+                                        <select id="S4Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="S4_pin" class="Pin" ></td>
+                                    <td class='timer' id="S4_Op1" ></td>
+                                    <td class='timer' id="S4_Op2" ></td>
+                                    <td class='timer' id="S4_Op3" ></td>
+                                    <td class='timer' id="S4_Op4" ></td>
+                                    <td class='timer' id="S4_Op5" ></td>
+                                    <td class='timer' id="S4_Op6" ></td>
+                                    <td class='timer' id="S4_Op7" ></td>
+                                    <td class='timer' id="S4_Op8" ></td>
+                                    <td class='timer' id="S4_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="Freq_1">
+                                        <label>Freq 1</label>
+                                    </td>
+                                    <td name="Freq1_remap">
+                                        <select id="Freq1Remap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="Freq1_pin" class="Pin" ></td>
+                                    <td class='timer' id="Freq1_Op1" ></td>
+                                    <td class='timer' id="Freq1_Op2" ></td>
+                                    <td class='timer' id="Freq1_Op3" ></td>
+                                    <td class='timer' id="Freq1_Op4" ></td>
+                                    <td class='timer' id="Freq1_Op5" ></td>
+                                    <td class='timer' id="Freq1_Op6" ></td>
+                                    <td class='timer' id="Freq1_Op7" ></td>
+                                    <td class='timer' id="Freq1_Op8" ></td>
+                                    <td class='timer' id="Freq1_Op9" ></td>
+                                </tr>
+                                <tr>
+                                    <td name="LED_1">
+                                        <label>LED Strip</label>
+                                    </td>
+                                    <td name="LED_remap">
+                                        <select id="LEDRemap" class="remap">
+                                            <option value="" i18n="NONE"></option>
+                                            <option value="A02" i18n="M1"></option>
+                                            <option value="A06" i18n="M2"></option>
+                                            <option value="B01" i18n="M3"></option>
+                                            <option value="C11" i18n="M4"></option>
+                                            <option value="A09" i18n="S1"></option>
+                                            <option value="A10" i18n="S2"></option>
+                                            <option value="A07" i18n="S3"></option>
+                                            <option value="A03" i18n="S4"></option>
+                                            <option value="B11" i18n="S5"></option>
+                                            <option value="B12" i18n="S6"></option>
+                                            <option value="D01" i18n="S7"></option>
+                                            <option value="A04" i18n="S8"></option>
+                                        </select>
+                                    </td>
+                                    <td id="LED_pin" class="Pin" ></td>
+                                    <td class='timer' id="LED_Op1" ></td>
+                                    <td class='timer' id="LED_Op2" ></td>
+                                    <td class='timer' id="LED_Op3" ></td>
+                                    <td class='timer' id="LED_Op4" ></td>
+                                    <td class='timer' id="LED_Op5" ></td>
+                                    <td class='timer' id="LED_Op6" ></td>
+                                    <td class='timer' id="LED_Op7" ></td>
+                                    <td class='timer' id="LED_Op8" ></td>
+                                    <td class='timer' id="LED_Op9" ></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>    
+            </div>
+        </div>
         <div class="release_info gui_box">
             <div class="darkgrey_box gui_box_titlebar">
                 <div class="spacer_box_title" style="text-align: center;"
