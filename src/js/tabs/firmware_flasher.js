@@ -629,7 +629,9 @@ TABS.firmware_flasher.initialize = function (callback) {
                                     $.get(unifiedConfig.download_url, function(targetConfig) {
                                         console.log('got unified config');
 
-                                        let remap = remapConfigFile(targetConfig);
+                                        let remap = remapConfigFile(targetConfig);  //get remap options from target config
+                                        remapDropdowns(remap);                      //populate the remap dropdowns
+                                        displayTimers();
                                         let config = cleanUnifiedConfigFile(targetConfig);
                                         if (config !== null) {
                                             const bareBoard = grabBuildNameFromConfig(config);
@@ -754,6 +756,80 @@ TABS.firmware_flasher.initialize = function (callback) {
                 output += line + '\n';
             });
             return output;
+        }
+
+        const remapRegExp = [
+            // for remapping
+            /^resource MOTOR/i,
+            /^resource SERVO/i,
+            /^resource FREQ/i,
+            /^resource LED_STRIP/i,
+            /^resource PWM/i,
+            /^resource serial_TX/i,
+            /^resource serial_RX/i,
+            /^resource I2C_SCL/i,
+            /^resource I2C_SDA/i,
+        ];
+
+        function remapConfigFile(input) {
+            console.log('Build Config file for Remap:');
+            let map = {};
+
+            input.split(/[\r\n]+/).forEach(function(line,index) {
+
+                let obElement = "";
+                let obValue = "";
+       //         line = line.replace(/#.*$/, '')
+         //                  .replace(/[ \t]+$/, '')
+           //                .replace(/[ \t]+/, ' ')
+             //              .replace(/^[ ]*$/, '');
+                if (line.length == 0)
+                    return;
+                if (line.substring(line.length - 4).match("NONE"))
+                    return;
+                if (line.match(/^resource MOTOR/i) ) {
+                    obElement = "M" + line.substring(15,16);
+                    obValue = line.substring(line.length - 3);
+                } else if (line.match(/^resource SERVO/i) ) {
+                    obElement = "S" + line.substring(15,16);
+                    obValue = line.substring(line.length - 3);
+                } else if (line.match(/^resource SERIAL/i) ) {
+                    obElement = line.substring(16,18) + line.substring(19,20);
+                    obValue = line.substring(line.length - 3);
+                } else if (line.match(/^resource LED_STRIP/i) ) {
+                    obElement = "LED STRIP";
+                    obValue = line.substring(line.length - 3);
+                } else if (line.match(/^resource I2C/i) ) {
+                    obElement = line.substring(13,16);
+                    obValue = line.substring(line.length - 3);
+                } else if (line.match(/^resource FREQ/i) ) {
+                    obElement = line.substring(9,15);
+                    obValue = line.substring(line.length - 3);
+                }
+
+                if (obElement.length > 0) {
+                    if (Object.values(map).indexOf(obElement) == -1) {
+                        map[obElement] = obValue;
+                    } else {
+                        console.log("duplicate remap elelemet found");
+                    }
+                }
+            });
+            console.log(map);
+            return map;
+        }
+
+        function remapDropdowns(map) {
+            const remapOptions = $('.tab-firmware_flasher .remap');
+            remapOptions.each(function(index,id) {
+                console.log(index);
+                $(id).empty();
+                $(id).append('<option value="">NONE</option>');
+
+                Object.keys(map).forEach(key => {
+                    $(id).append('<option value="' + map[key] + '">' + key + '</option>');
+                });
+            });
         }
 
         const portPickerElement = $('div#port-picker #port');
@@ -1026,7 +1102,7 @@ TABS.firmware_flasher.initialize = function (callback) {
 
         $('.tab-firmware_flasher .timer').click(function(e) {
             const target = $(e.target);
-//            console.log(target.index());
+            const afBox = $('.tab-firmware_flasher .AF');
 
             const setTimer = $('.tab-firmware_flasher .timer');
             const timerSet = target.index('.timer');
@@ -1037,6 +1113,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                 if ((range<= i)&&(i <=range+9)) {
                     if (i==timerSet) {
                         setTimer.eq(i).addClass("isChecked");
+                        afBox.eq(timerSet/9>>0).text(target.text().substring(0,5));
                     } else {
                         setTimer.eq(i).removeClass("isChecked");
                     };
