@@ -629,8 +629,8 @@ TABS.firmware_flasher.initialize = function (callback) {
                                     $.get(unifiedConfig.download_url, function(targetConfig) {
                                         console.log('got unified config');
 
-                                        let remap = remapConfigFile(targetConfig);  //get remap options from target config
-                                        remapDropdowns(remap);                      //populate the remap dropdowns
+                                        self.remap = remapConfigFile(targetConfig);  //get remap options from target config
+                                        remapDropdowns(self.remap);                      //populate the remap dropdowns
                                         displayTimers();
                                         let config = cleanUnifiedConfigFile(targetConfig);
                                         if (config !== null) {
@@ -820,16 +820,63 @@ TABS.firmware_flasher.initialize = function (callback) {
         }
 
         function remapDropdowns(map) {
+            console.log('remapDropdowns()');
             const remapOptions = $('.tab-firmware_flasher .remap');
+            // Add each option
             remapOptions.each(function(index,id) {
-                console.log(index);
+            //    console.log(index);
+                let selected = $(id).find(":selected").val()
                 $(id).empty();
                 $(id).append('<option value="">NONE</option>');
 
                 Object.keys(map).forEach(key => {
                     $(id).append('<option value="' + map[key] + '">' + key + '</option>');
                 });
+                $(id).val(selected);
             });
+
+            // Remove options selected on other pins
+            const removeOptions = $('.tab-firmware_flasher .remap');
+            let removeMe;
+            removeOptions.each(function(index1,id1) {
+                let removeSelected = $(id1).find(":selected").val();
+                console.log(removeSelected);
+                if (removeSelected === "") {
+                    console.log("index ", index1, " is NONE");
+                } else {
+                    const removeObjects = removeOptions;
+                    removeObjects.each(function(index2,id2) {
+                        if (index1 === index2){
+                            console.log('same, same');
+                        } else {
+                         //   console.log('                remove ', removeSelected, ' from index ', index2);
+                            removeMe = $(id2)[0];
+                            //console.log("removeMe ", removeMe.options.eq(index2).innertext);
+                            for (var i = 0; i < removeMe.options.length; i++) {
+                                console.log($(removeMe.options[i]).val(), ' : ', removeSelected);
+                                if ($(removeMe.options[i]).val() === removeSelected){
+                                    console.log('      removing: ', $(removeMe.options[i]).val(), 'from ', index2);
+                                    $(removeMe.options[i]).remove();
+                                }
+                                //console.log($(removeMe + 'option:contains("' + removeSelected + '")'));
+                               // console.log($(removeMe .options).filter(function(i, e) { return $(e).text() == removeSelected}));
+                            //    console.log($(removeMe.options['value="'+ removeSelected + '"']))
+    //This removes //$(removeMe.options[index2]).remove();
+                               /// console.log($(removeMe.options[i]).text()); //second console output
+                            }
+//                            console.log("removeMe ", removeMe.options['value="'+ removeSelected + '"']);
+                            //(removeMe.options['value="'+ removeSelected + '"']).remove();
+                        }
+                    })
+                }
+            })
+            /*let currElement = $('.tab-firmware_flasher .remap');
+            currElement = currElement.eq(i)[0];
+            console.log(currElement);
+            currSelected = currElement.attr(":selected");
+            console.log(currSelected);
+            //console.log(currSelected);*/
+
         }
 
         const portPickerElement = $('div#port-picker #port');
@@ -1129,6 +1176,7 @@ TABS.firmware_flasher.initialize = function (callback) {
             pinBox.eq(target.index('.remap')).text(Remap) ;
             loadTimerJson($('div.remapping_info .MCU').text());
             displayTimers();
+            remapDropdowns(self.remap);
         });
 
         $('div.remapping_info .MCU').change(function() {
