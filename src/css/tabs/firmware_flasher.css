@@ -103,7 +103,7 @@
     width: 280px;
 }
 
-.tab-firmware_flasher .option.releases {
+.tab-firmware_flasher .option .releases {
     margin: 0 0 2px 0;
     line-height: 20px;
 }
@@ -213,4 +213,73 @@
 #dialogUnstableFirmwareAcknoledgement .content ul {
     margin-top: 5px;
     margin-bottom: 5px;
+}
+
+.tab-firmware_flasher .remap_table td {
+    padding: 5px 5px 2px 5px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.tab-firmware_flasher .remap_table input {
+    height: 20px;
+    line-height: 20px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: normal;
+    padding-left: 3px;
+    border: 1px solid var(--subtleAccent);
+    border-radius: 3px;
+}
+
+.tab-firmware_flasher .remap_table select {
+    width: 70px; 
+    height: 20px;
+    line-height: 20px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: normal;
+    padding-left: 3px;
+    border: 1px solid var(--subtleAccent);
+    border-radius: 3px;
+}
+
+.tab-firmware_flasher .timer {
+
+    height: 15%;
+    width: 17%;
+    line-height: 15px;
+    text-align: left;
+    font-size: 12px;
+    color: rgba(0, 0, 0, .7);
+    font-weight: bold;
+    padding-left: 3px;
+    border: 2px solid var(--subtleAccent);
+    border-radius: 3px;
+    background-color: white
+}
+
+.tab-firmware_flasher .remap_table .option {
+    width: 140px
+}
+
+.tab-firmware_flasher .remap_table td:first-child {
+    text-align: left;
+}
+
+.tab-firmware_flasher .remap_table .timer:empty {
+    display:none;
+}
+
+.tab-firmware_flasher .remap_table .timer:hover {
+    background-color: var(--accent);
+    border: 5px solid var(-pushedButton-border);
+    border-radius: 6px;
+}
+
+.tab-firmware_flasher .remap_table .isChecked {
+    background-color: var(--accent);
+    border: 5px solid var(-pushedButton-border);
+    border-radius: 6px;
 }
