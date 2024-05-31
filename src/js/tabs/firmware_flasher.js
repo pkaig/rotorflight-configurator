@@ -21,7 +21,8 @@ TABS.firmware_flasher.initialize = function (callback) {
     self.intel_hex = undefined;
     self.parsed_hex = undefined;
     self.jsonData = undefined;
-    self.remap = undefined;	
+    self.remap = undefined;
+    self.timers = {};	
 	
     var unifiedSource = 'https://api.github.com/repos/rotorflight/rotorflight-targets/contents/configs';
 
@@ -73,31 +74,6 @@ TABS.firmware_flasher.initialize = function (callback) {
             });
         }
 
-        function displayTimers() {
-            console.log("displayTimers()")
-            let Pin;
-            const timerBox = $('.tab-firmware_flasher .timer');
-            for (let j = 0; j < 8; ++j) {
-                Pin = $('.tab-firmware_flasher .Pin').eq(j).text();
-                if (Pin == "") {
-                    for (let i = 0; i < 8; ++i) {
-                        timerBox.eq(i+j*9).text("") ;
-                    };
-                } else {
-                    $.each(self.jsonData, function(key, val) {
-                        let line;
-                        if (key == Pin) {
-                            timerBox.each(function(i, li) {
-                            for (let i = 0; i < 8; ++i) {
-                                line = val[i].substring(5);     //.length - 4);
-                                timerBox.eq(i+j*9).text(line) ;
-                            };
-                            });
-                        };
-                    });
-                };    
-            };
-        }
         function parse_hex(str, callback) {
             // parsing hex in different thread
             var worker = new Worker('./js/workers/hex_parser.js');
@@ -628,7 +604,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                                         console.log('got unified config');
 
                                         self.remap = remapConfigFile(targetConfig);  //get remap options from target config
-                                        remapDropdowns(self.remap);                      //populate the remap dropdowns
+                                        remapDropdowns(self.remap, true);            //populate the remap dropdowns. If true load defaults
                                         displayTimers();
                                         let config = cleanUnifiedConfigFile(targetConfig);
                                         if (config !== null) {
@@ -772,11 +748,14 @@ TABS.firmware_flasher.initialize = function (callback) {
         function remapConfigFile(input) {
             console.log('Build Config file for Remap:');
             let map = {};
+            let timerMap = self.timers;
 
             input.split(/[\r\n]+/).forEach(function(line,index) {
 
-                let obElement = "";
-                let obValue = "";
+                let mapElement = "";
+                let mapValue = "";
+                let timElement = "";
+                let timValue = "";
        //         line = line.replace(/#.*$/, '')
          //                  .replace(/[ \t]+$/, '')
            //                .replace(/[ \t]+/, ' ')
@@ -786,44 +765,65 @@ TABS.firmware_flasher.initialize = function (callback) {
                 if (line.substring(line.length - 4).match("NONE"))
                     return;
                 if (line.match(/^resource MOTOR/i) ) {
-                    obElement = "M" + line.substring(15,16);
-                    obValue = line.substring(line.length - 3);
+                    mapElement = "M" + line.substring(15,16);
+                    mapValue = line.substring(line.length - 3);
                 } else if (line.match(/^resource SERVO/i) ) {
-                    obElement = "S" + line.substring(15,16);
-                    obValue = line.substring(line.length - 3);
+                    mapElement = "S" + line.substring(15,16);
+                    mapValue = line.substring(line.length - 3);
                 } else if (line.match(/^resource SERIAL/i) ) {
-                    obElement = line.substring(16,18) + line.substring(19,20);
-                    obValue = line.substring(line.length - 3);
+                    mapElement = line.substring(16,18) + line.substring(19,20);
+                    mapValue = line.substring(line.length - 3);
                 } else if (line.match(/^resource LED_STRIP/i) ) {
-                    obElement = "LED STRIP";
-                    obValue = line.substring(line.length - 3);
+                    mapElement = "LED STRIP";
+                    mapValue = line.substring(line.length - 3);
                 } else if (line.match(/^resource I2C/i) ) {
-                    obElement = line.substring(13,16);
-                    obValue = line.substring(line.length - 3);
+                    mapElement = line.substring(13,16);
+                    mapValue = line.substring(line.length - 3);
                 } else if (line.match(/^resource FREQ/i) ) {
-                    obElement = line.substring(9,15);
-                    obValue = line.substring(line.length - 3);
+                    mapElement = line.substring(9,15);
+                    mapValue = line.substring(line.length - 3);
+                } else if (line.match(/^timer/ ) ) {
+                    timElement = line.substring(6,9);
+                    timValue = line.substring(10);
                 }
 
-                if (obElement.length > 0) {
-                    if (Object.values(map).indexOf(obElement) == -1) {
-                        map[obElement] = obValue;
+                if (mapElement.length > 0) {
+                    if (Object.values(map).indexOf(mapElement) == -1) {
+                        map[mapElement] = mapValue;
                     } else {
                         console.log("duplicate remap elelemet found");
                     }
                 }
+                if (timElement.length > 0) {
+                    if (Object.values(self.timers).indexOf(timElement) == -1) {
+                        self.timers[timElement] = timValue;
+                    } else {
+                        console.log("duplicate timer elelemet found");
+                    }
+                }
             });
+            console.log("print remap");
             console.log(map);
+            console.log("print timers");
+            console.log(timerMap);
+
             return map;
         }
 
-        function remapDropdowns(map) {
+        function remapDropdowns(map, load) {
             //Create the remap options for each .remap element
             console.log('remapDropdowns()');
             const remapOptions = $('.tab-firmware_flasher .remap');
+            const defaults = ['M1','M2','S1','S2','S3','S4','FREQ 1','LED STRIP'];
+            let selected
+            const pinBox = $('.tab-firmware_flasher .Pin');
             // Add each option
             remapOptions.each(function(index,id) {
-                let selected = $(id).find(":selected").val()
+                if (load) { //chose currently selected or defaults
+                    selected = self.remap[defaults[index]]
+                } else {
+                    selected = $(id).find(":selected").val()
+                }
                 $(id).empty();
                 $(id).append('<option value="">NONE</option>');
 
@@ -831,6 +831,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                     $(id).append('<option value="' + map[key] + '">' + key + '</option>');
                 });
                 $(id).val(selected);
+                pinBox.eq(index).text(selected) ;
             });
 
             // Remove options selected on other pins
@@ -857,6 +858,39 @@ TABS.firmware_flasher.initialize = function (callback) {
                 }
             })
         }
+
+        function displayTimers() {
+            console.log("displayTimers()")
+            let Pin;
+            const timerBox = $('.tab-firmware_flasher .timer');
+            for (let j = 0; j < 8; ++j) {
+                let retrn = true;
+                Pin = $('.tab-firmware_flasher .remap').eq(j).val();
+                if (Pin === "") {
+                    for (let i = 0; i < 8; ++i) {
+                        timerBox.eq(i+j*9).text("") ;
+                    };
+                    console.log(Pin," -> ",j);
+                } else {
+                    $.each(self.jsonData, function(key, val) {
+                        let line;
+                        console.log(key,' -> ',Pin)
+                        if (key === Pin) {
+                            timerBox.each(function(i, li) {
+                            for (let i = 0; i < 8; ++i) {
+                                line = val[i].substring(5);     //.length - 4);
+                                timerBox.eq(i+j*9).text(line) ;
+                                console.log(Pin," -> ",j);
+                            };
+                            retrn = false;
+                            });
+                        };
+                        return retrn
+                    });
+                };    
+            };
+        }
+
         const portPickerElement = $('div#port-picker #port');
         function flashFirmware(firmware) {
             var options = {};
@@ -1153,13 +1187,14 @@ TABS.firmware_flasher.initialize = function (callback) {
             const pinBox = $('.tab-firmware_flasher .Pin');
             pinBox.eq(target.index('.remap')).text(Remap) ;
             loadTimerJson($('div.remapping_info .MCU').text());
+            remapDropdowns(self.remap, false);
             displayTimers();
-            remapDropdowns(self.remap);
         });
 
         $('div.remapping_info .MCU').change(function() {
             console.log("MCU changed". $('div.remapping_info .MCU').text());
             loadTimerJson($('div.remapping_info .MCU').text());
+            remapDropdowns(self.remap, true);
             displayTimers();
         });
         $('a.flash_firmware').click(function () {

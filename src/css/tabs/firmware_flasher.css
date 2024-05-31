@@ -264,8 +264,13 @@
     width: 140px
 }
 
+.tab-firmware_flasher .remap_table .remap {
+    width: 90px
+}
+
 .tab-firmware_flasher .remap_table td:first-child {
     text-align: left;
+    width: 90px
 }
 
 .tab-firmware_flasher .remap_table .timer:empty {
