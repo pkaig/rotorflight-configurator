@@ -3345,6 +3345,9 @@
     "firmwareFlasherReleaseFile": {
         "message": "Binary:"
     },
+    "firmwareFlasherRemapMCU": {
+        "message": "MCU:"
+    },
     "firmwareFlasherUnifiedTargetName": {
         "message": "Unified Target:"
     },
