@@ -606,6 +606,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                                         self.remap = remapConfigFile(targetConfig);  //get remap options from target config
                                         remapDropdowns(self.remap, true);            //populate the remap dropdowns. If true load defaults
                                         displayTimers();
+                                        defaultTimers();
                                         let config = cleanUnifiedConfigFile(targetConfig);
                                         if (config !== null) {
                                             const bareBoard = grabBuildNameFromConfig(config);
@@ -839,7 +840,7 @@ TABS.firmware_flasher.initialize = function (callback) {
             let removeMe;
             removeOptions.each(function(index1,id1) {
                 let removeSelected = $(id1).find(":selected").val();
-                console.log(removeSelected);
+            //    console.log(removeSelected);
                 if (removeSelected === "") {
                     //Do not remove the NONE 
                 } else {
@@ -870,25 +871,46 @@ TABS.firmware_flasher.initialize = function (callback) {
                     for (let i = 0; i < 8; ++i) {
                         timerBox.eq(i+j*9).text("") ;
                     };
-                    console.log(Pin," -> ",j);
-                } else {
+//                    console.log(Pin," -> ",j);
+                } else { //PK - come back to this
                     $.each(self.jsonData, function(key, val) {
                         let line;
-                        console.log(key,' -> ',Pin)
+//                        console.log(key,' -> ',Pin)
                         if (key === Pin) {
                             timerBox.each(function(i, li) {
-                            for (let i = 0; i < 8; ++i) {
-                                line = val[i].substring(5);     //.length - 4);
-                                timerBox.eq(i+j*9).text(line) ;
-                                console.log(Pin," -> ",j);
-                            };
-                            retrn = false;
+                                for (let i = 0; i < 8; ++i) {
+                                    line = val[i].substring(5);     //.length - 4);
+                                    timerBox.eq(i+j*9).text(line) ;
+//                                    console.log(Pin," -> ",j);
+                                };
+                                retrn = false;
                             });
                         };
                         return retrn
                     });
                 };    
             };
+        }
+
+        function defaultTimers(){
+            console.log('defaultTimers()');
+            const AFopt = ['AF1','AF2','AF3','AF4','AF5','AF6','AF9','AF10','AF11']
+            const afBox = $('.tab-firmware_flasher .AF');
+            const setTimer = $('.tab-firmware_flasher .timer');
+            const remapOptions = $('.tab-firmware_flasher .remap');
+
+            remapOptions.each(function(index, li) {
+                const remapLine = $(li).val();
+                const selectTimer = self.timers[remapLine];
+                for (let i = 0 ; i<8; i++){
+                    console.log(selectTimer," : ",AFopt[i])
+                    if (selectTimer == AFopt[i]){
+                        setTimer.eq(i+index*9).addClass("isChecked");
+                    } else {
+                        setTimer.eq(i+index*9).removeClass("isChecked");
+                    }
+                }
+            })
         }
 
         const portPickerElement = $('div#port-picker #port');
@@ -1168,17 +1190,15 @@ TABS.firmware_flasher.initialize = function (callback) {
             const range = (timerSet-timerSet%9);
 
             setTimer.each(function(i, li) {
-
-                if ((range<= i)&&(i <=range+9)) {
+                if ((range<= i)&&(i <=range+8)) {
                     if (i==timerSet) {
                         setTimer.eq(i).addClass("isChecked");
-                        afBox.eq(timerSet/9>>0).text(target.text().substring(0,5));
+                        afBox.eq(timerSet/9>>0).text(target.val().substring(0,5));
                     } else {
                         setTimer.eq(i).removeClass("isChecked");
                     };
                 }; 
             });
-
         });
 
         $('.tab-firmware_flasher .remap').change(function(e) {
