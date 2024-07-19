@@ -22,6 +22,7 @@ TABS.firmware_flasher.initialize = function (callback) {
     self.parsed_hex = undefined;
     self.jsonData = undefined;
     self.remap = undefined;
+    self.remapOut = undefined;
     self.timers = {};	
 	
     var unifiedSource = 'https://api.github.com/repos/rotorflight/rotorflight-targets/contents/configs';
@@ -608,6 +609,9 @@ TABS.firmware_flasher.initialize = function (callback) {
                                         displayTimers();
                                         defaultTimers();
                                         let config = cleanUnifiedConfigFile(targetConfig);
+                                        console.log(self.remapOut);
+                                        $('.tab-firmware_flasher .display_Remap').text(self.remapOut);
+                                        //$('div.remapping_info .display_Remap').text(self.remapOut);
                                         if (config !== null) {
                                             const bareBoard = grabBuildNameFromConfig(config);
                                             TABS.firmware_flasher.bareBoard = bareBoard;
@@ -791,6 +795,7 @@ TABS.firmware_flasher.initialize = function (callback) {
                 if (mapElement.length > 0) {
                     if (Object.values(map).indexOf(mapElement) == -1) {
                         map[mapElement] = mapValue;
+                        self.remapOut += line + '\n';
                     } else {
                         console.log("duplicate remap elelemet found");
                     }
@@ -811,6 +816,15 @@ TABS.firmware_flasher.initialize = function (callback) {
             return map;
         }
 
+        function printRemap(map) {
+            let remap = "";
+            const newLine = '\n'
+            Object.keys(map).forEach(key => {
+                remap = remap + 'resource ' + key + ' ' + map[key] + newLine;
+            });
+            return remap;
+        }
+
         function remapDropdowns(map, load) {
             //Create the remap options for each .remap element
             console.log('remapDropdowns()');
@@ -820,7 +834,7 @@ TABS.firmware_flasher.initialize = function (callback) {
             const pinBox = $('.tab-firmware_flasher .Pin');
             // Add each option
             remapOptions.each(function(index,id) {
-                if (load) { //chose currently selected or defaults
+                if (load) { //choose board defaults or currently selected
                     selected = self.remap[defaults[index]]
                 } else {
                     selected = $(id).find(":selected").val()
@@ -871,17 +885,14 @@ TABS.firmware_flasher.initialize = function (callback) {
                     for (let i = 0; i < 8; ++i) {
                         timerBox.eq(i+j*9).text("") ;
                     };
-//                    console.log(Pin," -> ",j);
                 } else { //PK - come back to this
                     $.each(self.jsonData, function(key, val) {
                         let line;
-//                        console.log(key,' -> ',Pin)
                         if (key === Pin) {
                             timerBox.each(function(i, li) {
                                 for (let i = 0; i < 8; ++i) {
-                                    line = val[i].substring(5);     //.length - 4);
+                                    line = val[i].substring(5);
                                     timerBox.eq(i+j*9).text(line) ;
-//                                    console.log(Pin," -> ",j);
                                 };
                                 retrn = false;
                             });
@@ -1209,14 +1220,17 @@ TABS.firmware_flasher.initialize = function (callback) {
             loadTimerJson($('div.remapping_info .MCU').text());
             remapDropdowns(self.remap, false);
             displayTimers();
+            const display = $('.tab-firmware_flasher #DisplayRemap');
+            display.text(printRemap(self.remap));
         });
 
         $('div.remapping_info .MCU').change(function() {
             console.log("MCU changed". $('div.remapping_info .MCU').text());
             loadTimerJson($('div.remapping_info .MCU').text());
             remapDropdowns(self.remap, true);
-            displayTimers();
+            printRemap(self.remap);
         });
+
         $('a.flash_firmware').click(function () {
             if (!$(this).hasClass('disabled')) {
                 startFlashing();

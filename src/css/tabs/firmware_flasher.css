@@ -257,24 +257,24 @@
     padding-left: 3px;
     border: 2px solid var(--subtleAccent);
     border-radius: 3px;
-    background-color: white
+    background-color: white;
 }
 
 .tab-firmware_flasher .remap_table .option {
-    width: 140px
+    width: 140px;
 }
 
 .tab-firmware_flasher .remap_table .remap {
-    width: 90px
+    width: 90px;
 }
 
 .tab-firmware_flasher .remap_table td:first-child {
     text-align: left;
-    width: 90px
+    width: 90px;
 }
 
 .tab-firmware_flasher .remap_table .timer:empty {
-    display:none;
+    display: none;
 }
 
 .tab-firmware_flasher .remap_table .timer:hover {
@@ -287,4 +287,11 @@
     background-color: var(--accent);
     border: 5px solid var(-pushedButton-border);
     border-radius: 6px;
+}
+
+#DisplayRemap {
+    font-size: 15px;
+    margin: 20px;
+    margin-top: 25px;
+    font-weight: bold;
 }
