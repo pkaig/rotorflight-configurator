@@ -486,8 +486,101 @@
     "tabRemapFC": {
         "message": "Remap FC"
     },
-    "remapFcPlaceholder": {
-        "message": "Flight controller resource remapping is coming soon."
+    "remapFcRunButton": {
+        "message": "Read FC"
+    },
+    "remapFcRunning": {
+        "message": "Reading FC"
+    },
+    "remapFcLoadingHardware": {
+        "message": "Loading hardware..."
+    },
+    "remapFcError": {
+        "message": "Error reading FC"
+    },
+    "remapFcTableOption": {
+        "message": "FC Label"
+    },
+    "remapFcTableDefaultPin": {
+        "message": "Default Pin"
+    },
+    "remapFcTableCurrentOption": {
+        "message": "Current Option"
+    },
+    "remapFcAddOption": {
+        "message": "+ Add"
+    },
+    "remapFcNoneOption": {
+        "message": "None"
+    },
+    "remapFcSetOption": {
+        "message": "Set Option"
+    },
+    "remapFcMcuLabel": {
+        "message": "MCU"
+    },
+    "remapFcDesignLabel": {
+        "message": "Design"
+    },
+    "remapFcLoadChangesButton": {
+        "message": "Load Changes"
+    },
+    "remapFcLoadChangesBlocked": {
+        "message": "Resolve the pin conflict below before sending changes"
+    },
+    "remapFcClearChangesButton": {
+        "message": "Clear Changes"
+    },
+    "remapFcApplying": {
+        "message": "Applying..."
+    },
+    "remapFcChangesHeading": {
+        "message": "Pending Changes"
+    },
+    "remapFcShowDetails": {
+        "message": "Show details"
+    },
+    "remapFcPendingCommands": {
+        "message": "Pending Commands ({{count}})"
+    },
+    "remapFcAllocationCalculatedHeading": {
+        "message": "Calculated config"
+    },
+    "remapFcAllocationInvalidHeading": {
+        "message": "Pin selection not valid"
+    },
+    "remapFcAllocationInvalidWarning": {
+        "message": "The current pin assignment can't work: {{reasons}}. Reallocating timers/DMA on the current pins alone can't resolve it either -- pick a suggestion below to fix the pin assignment itself."
+    },
+    "remapFcAcceptSuggestion": {
+        "message": "Accept Suggestion"
+    },
+    "remapFcSuggestionSwap": {
+        "message": "Swap pins for {{feature}} and {{otherFeature}}"
+    },
+    "remapFcSuggestionMove": {
+        "message": "Move {{feature}} to pin {{targetPin}} (currently unassigned)"
+    },
+    "remapFcSuggestionManualFix": {
+        "message": "No automatic fix found for {{feature}}. Reset it to unassigned and choose a different pin."
+    },
+    "remapFcResetToSetOption": {
+        "message": "Reset to Set Option"
+    },
+    "remapFcAllocationUnresolved": {
+        "message": "Could not find a working timer for: {{features}}. Left unchanged rather than broken -- you may need to free up a pin manually."
+    },
+    "remapFcAllocationFeature": {
+        "message": "Feature"
+    },
+    "remapFcAllocationPin": {
+        "message": "Pin"
+    },
+    "remapFcAllocationTimer": {
+        "message": "Timer"
+    },
+    "remapFcAllocationDma": {
+        "message": "DMA"
     },
     "tabAdjustments": {
         "message": "Adjustments"

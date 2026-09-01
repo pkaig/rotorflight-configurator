@@ -146,6 +146,22 @@ tab.initialize = function (callback) {
             if (CONFIGURATOR.cliEngineActive) {
                 const dialog = $('.dialogCLIExit')[0];
 
+                // This tab's own confirm-exit dialog isn't guaranteed to
+                // still be in the DOM here -- #content can get cleared or
+                // replaced by something else (a disconnect, a reboot-driven
+                // reconnect re-navigating tabs, another tab's own mount)
+                // without this tab ever getting a chance to re-render it.
+                // There's nothing to show a confirmation in at that point,
+                // so exit the CLI session directly (the same close()
+                // tab.cleanup() itself calls) rather than throwing on a
+                // missing dialog -- an uncaught exception would abort the
+                // whole tab-switch chain and leave the flight controller
+                // stuck in CLI mode with nothing left to ever close it.
+                if (!dialog) {
+                    self.cliEngine.close(callback);
+                    return;
+                }
+
                 $('.cliExitBackBtn').click(function () {
                     $('.cliExitBackBtn').off('click');
                     dialog.close();
