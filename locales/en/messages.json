@@ -483,6 +483,12 @@
     "tabBlackbox": {
         "message": "Blackbox"
     },
+    "tabRemapFC": {
+        "message": "Remap FC"
+    },
+    "remapFcPlaceholder": {
+        "message": "Flight controller resource remapping is coming soon."
+    },
     "tabAdjustments": {
         "message": "Adjustments"
     },
