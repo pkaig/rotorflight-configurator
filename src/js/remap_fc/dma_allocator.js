@@ -7,10 +7,9 @@
  * A servo or frequency input never uses DMA regardless of any other
  * setting, so it's skipped entirely here -- see
  * feature_classifier.js's featureNeedsDma, and each row's own
- * needsDma. Follows the original Wingflight remap tool's DMA rules
- * for the features that do participate: a stream can only serve one
- * feature at a time, and a motor/the LED strip -- the outputs most
- * sensitive to DMA contention -- may take a stream a lower-priority
+ * needsDma. A stream can only serve one feature at a time, 
+ * and a motor/the LED strip -- the outputs most sensitive to 
+ * DMA contention -- may take a stream a lower-priority
  * feature already claimed (though in practice, with servos/frequency
  * inputs excluded, the only lower-priority claimant left is a
  * reserved stream this tool doesn't manage at all, which is never

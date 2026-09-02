@@ -31,7 +31,6 @@
     buildRowsForOptions,
     getAddableOptions,
     getRowSelectableOptions,
-    isOverCapacity,
   } from "@/js/remap_fc/remap_table.js";
   import { reconcileTimersAndDma } from "@/js/remap_fc/timer_dma_reconciler.js";
   import mcuAllData from "@/tabs/remap_fc/MCU-all.json";
@@ -73,6 +72,13 @@
   // the current hardware dump. Matches the top-level keys of
   // MCU-all.json.
   let mcuType = $state(null);
+  // The flight controller's motor_pwm_protocol as it was when the FC
+  // was read (e.g. "DSHOT600"), set by remap_fc.js via
+  // setCurrentMotorProtocol(). Reassigning a pin's timer/DMA makes the
+  // firmware drop this back to PWM, so it's re-applied as
+  // `set motor_pwm_protocol = <this>` right before `save` (see
+  // commandsToSend). null when the read couldn't determine it.
+  let currentMotorProtocol = $state(null);
   // workingCurrent is a local, editable copy of the current hardware
   // map: it starts as whatever was read from the FC, and is mutated
   // here as the user makes "Current Option" picks. Nothing is sent to
@@ -358,8 +364,10 @@
 
   // How many rows the "+ Add" listbox shows at once while open: every
   // choice plus the placeholder, capped so it can't grow unreasonably
-  // tall when there's a lot to pick from.
-  let addMenuSize = $derived(Math.min(addablePool.length + 1, 10));
+  // tall when there's a lot to pick from. It renders as a floating
+  // overlay (see .add-menu), so a taller list here just covers more of
+  // whatever sits below the table rather than pushing the page around.
+  let addMenuSize = $derived(Math.min(addablePool.length + 1, 16));
 
   // The pool offered by a given row's own "Current Option" dropdown.
   // Computed per row, rather than shared, because eligibility depends
@@ -532,6 +540,18 @@
     "set dshot_bitbang = OFF",
   ];
 
+  // Restores motor_pwm_protocol to whatever the FC reported on read
+  // (see currentMotorProtocol). Applying any `timer`/`dma pin` command
+  // makes the firmware drop the protocol back to PWM, so this has to
+  // go out after timerDmaCommands and as the last thing before `save`.
+  // Empty when there are no timer/DMA changes (nothing reset it) or
+  // the read couldn't determine the protocol.
+  let currentMotorProtocolCommand = $derived(
+    currentMotorProtocol && timerDmaCommands.length > 0
+      ? [`set motor_pwm_protocol = ${currentMotorProtocol}`]
+      : [],
+  );
+
   // What "Load Changes" actually sends, and what the preview panel
   // shows -- the two must always match exactly, so this is the single
   // place "save" gets appended. `resource`/`timer`/`dma pin` commands
@@ -544,6 +564,7 @@
     ...DSHOT_SETTING_COMMANDS,
     ...pendingCommands,
     ...timerDmaCommands,
+    ...currentMotorProtocolCommand,
     "save",
   ]);
 
@@ -553,6 +574,10 @@
 
   export function setRunning(value) {
     running = value;
+  }
+
+  export function setCurrentMotorProtocol(value) {
+    currentMotorProtocol = value;
   }
 
   export function setError(message) {
@@ -575,6 +600,13 @@
    *    TABLE_OPTION_KEYS feature that's been reassigned there (e.g.
    *    Freq1's pin now holds M2, so Freq1's row still shows, with M2
    *    as its occupant).
+   *  - A motor/servo index beyond what Rotorflight can drive (M5-M8,
+   *    S9-S12 — surfaced only via rotorflight_target_source.js's
+   *    richer Betaflight-target default set) behaves like any other
+   *    non-TABLE_OPTION_KEYS pin: a row only when its default pin is
+   *    occupied (e.g. a servo the user moved onto the pin Betaflight
+   *    calls "MOTOR 5"), and "+ Add" otherwise. It never nags with an
+   *    empty "Set Option" row of its own.
    *  - A UART/I2C identity (RX/TX/SDA/SCL) gets an automatic row when
    *    a motor/servo/freq/LED feature has been reassigned onto its
    *    default pin (e.g. M2 moved onto RX2's own default pin, A03 —
@@ -619,16 +651,6 @@
       const defaultPin = defaultHw[option]?.pin;
       if (defaultPin === undefined) return false;
 
-      // Beyond what Rotorflight can actually use (e.g. "M5" on an
-      // 8-motor target) -- only ever possible via
-      // wingflight_target_source.js's richer default set, never from
-      // the FC's own dump directly. Always show it once the default
-      // set claims it, regardless of what (if anything) currently
-      // occupies that pin, so a pin the user needs to explicitly deal
-      // with can never go silently missing (see the unsetOptions
-      // assignment below for forcing its placeholder state).
-      if (isOverCapacity(option)) return true;
-
       if (
         !TABLE_OPTION_KEYS.includes(option) &&
         namedConnectorPins.has(defaultPin)
@@ -636,6 +658,16 @@
         return true;
       }
 
+      // Every remaining option -- including a motor/servo index beyond
+      // what Rotorflight itself can use (e.g. "M5" on an 8-motor
+      // Betaflight-shared target, surfaced only via
+      // rotorflight_target_source.js) -- gets an automatic row only
+      // when its own default pin is actually occupied right now. An
+      // empty over-capacity pin never nags with a "Set Option" row of
+      // its own; it stays reachable through "+ Add" instead (see
+      // getAddableOptions). An occupied one still shows, so a resource
+      // sitting on a pin Betaflight happens to call "MOTOR 5" (e.g. a
+      // servo the user moved there) can't go silently missing.
       const occupant = occupantOf(defaultPin);
       if (occupant === undefined) return false;
       return (
@@ -644,15 +676,12 @@
       );
     });
 
-    // Rows freshly read from the FC are never "unset" — except ones
-    // beyond Rotorflight's actual motor/servo capacity, which always
-    // start "Set Option" regardless of what's nominally assigned to
-    // their default pin right now (see isOverCapacity), since
-    // Rotorflight can never actually use that value as a real current
-    // option -- the row exists purely so the user can explicitly
-    // reassign or free that pin, never left looking like a settled,
-    // working assignment.
-    unsetOptions = visibleOptions.filter((option) => isOverCapacity(option));
+    // Rows freshly read from the FC always show their real current
+    // occupant, never a "Set Option" placeholder -- an over-capacity
+    // pin with nothing on it simply gets no row at all (see
+    // visibleOptions above), so there's nothing left here to force
+    // into the unset state.
+    unsetOptions = [];
   }
 
   /**
@@ -699,6 +728,7 @@
     error = null;
     hasRead = false;
     mcuType = null;
+    currentMotorProtocol = null;
     workingCurrent = {};
     originalCurrent = {};
     defaultHardware = {};
@@ -1034,18 +1064,24 @@
               <tr class="add-row">
                 <td colspan={showCalculatedDetails ? 4 : 3}>
                   {#if addMenuOpen}
-                    <Select
-                      bind:value={selectedAddOption}
-                      onchange={handleAddChange}
-                      size={addMenuSize}
-                      options={[
-                        { value: "", label: $i18n.t("remapFcAddOption") },
-                        ...addablePool.map((addable) => ({
-                          value: addable.option,
-                          label: displayName(addable.option),
-                        })),
-                      ]}
-                    />
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <div class="add-menu">
+                      <select
+                        class="add-menu-select"
+                        autofocus
+                        bind:value={selectedAddOption}
+                        onchange={handleAddChange}
+                        onblur={() => (addMenuOpen = false)}
+                        size={addMenuSize}
+                      >
+                        <option value="">{$i18n.t("remapFcAddOption")}</option>
+                        {#each addablePool as addable (addable.option)}
+                          <option value={addable.option}>
+                            {displayName(addable.option)}
+                          </option>
+                        {/each}
+                      </select>
+                    </div>
                   {:else}
                     <button
                       class="btn add-btn"
@@ -1586,10 +1622,40 @@
     .add-row td {
       border-bottom: none;
       padding-top: 8px;
+      /* Anchors the .add-menu overlay below. */
+      position: relative;
     }
 
     .add-btn {
       @extend %button;
+    }
+
+    /* The expanded "+ Add" picker floats over whatever sits below the
+       table (the Pending Changes card) rather than being clipped to a
+       single row by the global select{height:1.5rem} rule or shoving
+       the page layout around while it's open. Anchored to the add
+       row's cell; closes on blur (see the select's onblur). */
+    .add-menu {
+      position: absolute;
+      top: 6px;
+      left: 12px;
+      z-index: 30;
+    }
+
+    .add-menu-select {
+      /* height:auto lets the `size` attribute set the visible rows,
+         overriding the global select{height:1.5rem}. */
+      height: auto;
+      min-width: 220px;
+      padding: 4px 0;
+      background-color: var(--color-input-bg);
+      border: 1px solid var(--color-border-accent);
+      border-radius: 4px;
+      box-shadow: 0 6px 20px var(--color-shadow);
+
+      option {
+        padding: 3px 12px;
+      }
     }
 
     /* The "Current Option" dropdown otherwise sizes itself to each */

@@ -12,13 +12,13 @@
  * timer_allocator.js/dma_allocator.js pass and turns its result into
  * the `timer`/`dma pin` CLI commands needed to apply it.
  *
- * Deliberately an all-or-nothing decision, matching the original
- * Wingflight remap tool: a clash anywhere means every feature's timer
- * and DMA is reallocated from scratch together, rather than patching
- * around just the clashing ones -- the whole point of the base-
- * exclusivity and critical-base rules is that one feature's "safe"
- * choice depends on every other feature's choice too, so a partial
- * reallocation could just move the clash elsewhere.
+ * Deliberately an all-or-nothing decision, a clash anywhere means 
+ * every feature's timer and DMA is reallocated from scratch 
+ * together, rather than patching just the clashing ones. 
+ * The whole point of the base-exclusivity and critical-base 
+ * rules is that one feature's "safe" choice depends on every 
+ * other feature's choice too, so a partial reallocation could \
+ * just move the clash elsewhere.
  *
  * timer_allocator.js/dma_allocator.js always assign every feature
  * *something*, even when literally every option available to it

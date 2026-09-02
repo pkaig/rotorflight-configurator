@@ -9,10 +9,18 @@
     // expanded, always-open listbox instead.
     size,
     onchange,
+    onblur,
   } = $props();
 </script>
 
-<select {id} bind:value {disabled} {size} onchange={(e) => onchange?.(e)}>
+<select
+  {id}
+  bind:value
+  {disabled}
+  {size}
+  onchange={(e) => onchange?.(e)}
+  onblur={(e) => onblur?.(e)}
+>
   {#each options as option (option.value)}
     <option value={option.value}>{option.label}</option>
   {/each}

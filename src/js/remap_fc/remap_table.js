@@ -17,7 +17,7 @@ import { buildResourceCommand } from "./hardware_parser.js";
 // Betaflight commonly defines more than this -- up to 8 motors,
 // sometimes 12 servos -- but a live `dump hardware` from Rotorflight
 // itself never reports beyond these, since its own runtime was never
-// compiled to support more. wingflight_target_source.js is the one
+// compiled to support more. rotorflight_target_source.js is the one
 // place that can still surface a richer default set than that (from
 // the target's own definition on GitHub, for a board with no
 // Rotorflight-specific build of its own) -- see isOverCapacity below
@@ -91,11 +91,11 @@ export const TABLE_OPTION_KEYS = [
 //
 // M5-M12/S9-S12 go beyond MAX_VALID_MOTORS/MAX_VALID_SERVOS — see
 // isOverCapacity's own comment for why a board can still report them
-// (via wingflight_target_source.js) despite Rotorflight itself never
+// (via rotorflight_target_source.js) despite Rotorflight itself never
 // being able to use them. RX/TX go up to 12 and SDA/SCL up to 4 to
 // match the CLI's own resource catalog (`resource SERIAL_RX 12 ...`,
 // `resource I2C_SDA 4 ...`), even though only a handful of MCUs — none
-// currently supported by Rotorflight/Wingflight — actually wire that
+// currently supported by Rotorflight — actually wire that
 // many UART/I2C instances. Every one of these stays invisible for a
 // board that doesn't actually report it — getAddableOptions gates on
 // `option in defaultHardware`, and setHardware's own visibleOptions

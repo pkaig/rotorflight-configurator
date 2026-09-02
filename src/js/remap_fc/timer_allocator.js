@@ -1,8 +1,7 @@
 /**
  * File: src/js/remap_fc/timer_allocator.js
  * Picks a non-clashing timer+channel for every feature in a working
- * hardware map, following the same rules as the original Wingflight
- * remap tool's allocator:
+ * hardware map:
  *
  *   1. No two features may ever share a full timer+channel (e.g. two
  *      features both on "TIM3 CH1", or one on "TIM3 CH1" and another

@@ -11,9 +11,13 @@
  *
  * This looks up that same target's own unified config file from
  * rotorflight/rotorflight-targets -- the same GitHub repository the
- * Firmware Flasher tab already reads builds from (see
- * firmware_flasher.js) -- and parses it with hardware_parser.js's
- * own parseHardwareDump, unmodified: a unified target config is
+ * Firmware Flasher tab reads builds from (see firmware_flasher.js),
+ * though from the `master` branch's full upstream config set rather
+ * than the smaller Rotorflight-curated `rotorflight` branch the
+ * flasher uses: the whole point here is a board with no
+ * Rotorflight-specific target of its own, so its definition only
+ * exists on `master`. Parsed with hardware_parser.js's own
+ * parseHardwareDump, unmodified: a unified target config is
  * already written in the identical `resource`/`timer`/`dma pin` CLI
  * syntax a real `dump hardware` response uses. So this needs no
  * parser of its own, just the right file to hand parseHardwareDump
@@ -31,7 +35,7 @@ import * as github from "@/js/GitHubApi.js";
 import { parseHardwareDump } from "./hardware_parser.js";
 
 const REPO = "rotorflight/rotorflight-targets";
-const BRANCH = "rotorflight";
+const BRANCH = "master";
 const CONFIGS_PATH = "configs";
 const FETCH_TIMEOUT_MS = 4000;
 
