@@ -60,6 +60,12 @@
   // --- Local UI state, all driven by remap_fc.js via the exported
   // setters below (this component never fetches anything itself). ---
   let running = $state(false);
+  // 0-100 while remap_fc.js's own CliEngine is mid-way through sending
+  // back a large batch (currently just the post-read full-config
+  // restore, which can run to a couple thousand lines) -- null the
+  // rest of the time, including for every other `running` step, which
+  // are all fast enough not to need it. Set via setRestoreProgress().
+  let restoreProgress = $state(null);
   let error = $state(null);
   // Whether a read has completed — flips the pre-read intro/button
   // over to the board info card and table.
@@ -67,10 +73,6 @@
   // MCU family (e.g. "STM32F7X2"), matching MCU-all.json's top-level
   // keys.
   let mcuType = $state(null);
-  // motor_pwm_protocol as read (e.g. "DSHOT600") -- reassigning a
-  // pin's timer/DMA resets it to PWM, so it's restored via
-  // commandsToSend. Set by remap_fc.js via setCurrentMotorProtocol().
-  let currentMotorProtocol = $state(null);
   // Editable working copy of the current hardware map, staged only
   // until "Load Changes" is pressed.
   /** @type {import("@/js/remap_fc/hardware_parser.js").HardwareMap} */
@@ -115,6 +117,23 @@
   // MCU -- false means pin remapping can't be safely calculated, so
   // the tool shows a warning instead of opening (see the template).
   let mcuSupported = $derived(isMcuSupported(mcuAllData, mcuType));
+
+  // The "Read FC" button's own label: plain while idle, "Reading FC"
+  // for the several fast steps that make up most of a read, and (once
+  // remap_fc.js's setRestoreProgress reports one) a live percentage
+  // for the one step slow enough to actually need it -- replaying the
+  // full config backup, which can run to a couple thousand lines. A
+  // static "Reading FC" for that whole stretch would look identical to
+  // a genuine hang; showing it actually advancing is the difference.
+  let runButtonLabel = $derived(
+    !running
+      ? $i18n.t("remapFcRunButton")
+      : restoreProgress != null
+        ? $i18n.t("remapFcRunningProgress", {
+            percent: Math.round(restoreProgress),
+          })
+        : $i18n.t("remapFcRunning"),
+  );
 
   // Keep the visible rows in the same fixed order as OPTION_KEYS,
   // regardless of the order options were added in.
@@ -468,21 +487,12 @@
     "set dshot_bitbang = OFF",
   ];
 
-  // Restores motor_pwm_protocol after timer/DMA commands reset it to
-  // PWM; empty if nothing changed or the read couldn't determine it.
-  let currentMotorProtocolCommand = $derived(
-    currentMotorProtocol && timerDmaCommands.length > 0
-      ? [`set motor_pwm_protocol = ${currentMotorProtocol}`]
-      : [],
-  );
-
   // What "Load Changes" sends and the preview panel shows -- the
   // single place "save" gets appended.
   let commandsToSend = $derived([
     ...DSHOT_SETTING_COMMANDS,
     ...pendingCommands,
     ...timerDmaCommands,
-    ...currentMotorProtocolCommand,
     "save",
   ]);
 
@@ -494,8 +504,8 @@
     running = value;
   }
 
-  export function setCurrentMotorProtocol(value) {
-    currentMotorProtocol = value;
+  export function setRestoreProgress(value) {
+    restoreProgress = value;
   }
 
   export function setError(message) {
@@ -591,7 +601,7 @@
     error = null;
     hasRead = false;
     mcuType = null;
-    currentMotorProtocol = null;
+    restoreProgress = null;
     workingCurrent = {};
     originalCurrent = {};
     defaultHardware = {};
@@ -753,7 +763,7 @@
           />
         </div>
         <button class="btn run-btn" onclick={onClick} disabled={running}>
-          {running ? $i18n.t("remapFcRunning") : $i18n.t("remapFcRunButton")}
+          {runButtonLabel}
         </button>
       </Section>
     </div>
@@ -817,15 +827,14 @@
       <div class="table-with-diagram">
         <!-- Two fallback diagrams: a bare, uncased PCB (GENERIC.svg)
            for a board reporting no real reference design at all (see
-           isGenericBoard), or a cased case shape for every other
-           board -- not board-specific artwork, building/fetching a
-           dedicated diagram per manufacturer doesn't scale. Outer/
-           inner body shape matches flydragon.svg's own outline (a
-           plain rounded rect, rx 20/14), in grey as the fallback
-           colour a board with no dedicated diagram of its own gets
-           (see boardBezelColor/boardBodyColor for manufacturers with
-           their own real case colours). The FC's own reported name
-           sits above the diagram, not overlaid on it. -->
+           isGenericBoard), or a plain rounded-rect case (drawn inline
+           below, not its own SVG file) for every other board -- not
+           board-specific artwork, building/fetching a dedicated
+           diagram per manufacturer doesn't scale. Grey is the fallback
+           colour a board with no dedicated case colours of its own
+           gets (see boardBezelColor/boardBodyColor for manufacturers
+           with their own real ones). The FC's own reported name sits
+           above the diagram, not overlaid on it. -->
         <div class="board-diagram-column">
           <div class="board-diagram-caption">
             {boardBrandName}
@@ -1204,10 +1213,10 @@
     padding: 0 24px;
   }
 
-  /* Custom Section headers (board-info card, live-warning card): */
-  /* matches Section.svelte/Status.svelte's own header/title styling, */
-  /* since supplying a header snippet bypasses Section's default one */
-  /* entirely. */
+  /* Custom Section headers (board-info card, live-warning card):
+     matches Section.svelte/Status.svelte's own header/title styling,
+     since supplying a header snippet bypasses Section's default one
+     entirely. */
   .header {
     @extend %section-header;
     padding-right: 8px;
@@ -1222,8 +1231,8 @@
     color: var(--color-red-500);
   }
 
-  /* Plain label/value rows, matching Status.svelte's own info-table */
-  /* convention. */
+  /* Plain label/value rows, matching Status.svelte's own info-table
+     convention. */
   .info-table {
     width: 100%;
 
@@ -1238,15 +1247,15 @@
     }
   }
 
-  /* Hugs its own short content, matching Status.svelte's compact */
-  /* info cards; margin-bottom separates it from the table below. */
+  /* Hugs its own short content, matching Status.svelte's compact
+     info cards; margin-bottom separates it from the table below. */
   .board-info-card {
     max-width: 320px;
     margin-bottom: 24px;
   }
 
-  /* Wider than .board-info-card since the table has four columns, but */
-  /* still capped rather than spanning the full page. */
+  /* Wider than .board-info-card since the table has four columns, but
+     still capped rather than spanning the full page. */
   .calculated-config-card,
   .pending-changes-card,
   .pin-conflict-card,
@@ -1296,9 +1305,9 @@
     color: var(--color-red-500);
   }
 
-  /* The suggestion picker (a single suggestion shows as plain text */
-  /* instead -- see the template) plus "Accept Suggestion", at the */
-  /* bottom of the pin-conflict warning panel. */
+  /* The suggestion picker (a single suggestion shows as plain text
+     instead -- see the template) plus "Accept Suggestion", at the
+     bottom of the pin-conflict warning panel. */
   .suggestion-row {
     display: flex;
     align-items: center;
@@ -1307,8 +1316,8 @@
     flex-wrap: wrap;
   }
 
-  /* Shown instead of .suggestion-row when no swap/move resolves the */
-  /* clash -- same top spacing, so the two are interchangeable. */
+  /* Shown instead of .suggestion-row when no swap/move resolves the
+     clash -- same top spacing, so the two are interchangeable. */
   .suggestion-manual-fix {
     margin: 10px 0 0;
   }
@@ -1333,15 +1342,15 @@
       opacity: 0.8;
     }
 
-    /* Flags a row left untouched because nothing could be resolved */
-    /* for it, rather than one that was actually (re)allocated. */
+    /* Flags a row left untouched because nothing could be resolved
+       for it, rather than one that was actually (re)allocated. */
     tr.unresolved td {
       color: var(--color-red-500);
     }
 
-    /* A DMA cell shown for reference only (servo/freq inputs never */
-    /* actually use DMA -- see featureNeedsDma); struck through so it */
-    /* reads as inert. */
+    /* A DMA cell shown for reference only (servo/freq inputs never
+       actually use DMA -- see featureNeedsDma); struck through so it
+       reads as inert. */
     td.dma-unmanaged {
       opacity: 0.5;
       text-decoration: line-through;
@@ -1353,10 +1362,10 @@
     font-size: 0.9em;
   }
 
-  /* Every timer option this pin actually supports, not just the one */
-  /* in use -- the chosen one stands out at full weight/opacity, the */
-  /* rest are dimmed rather than removed entirely, so it's still */
-  /* obvious what else was available. */
+  /* Every timer option this pin actually supports, not just the one
+     in use -- the chosen one stands out at full weight/opacity, the
+     rest are dimmed rather than removed entirely, so it's still
+     obvious what else was available. */
   .timer-options {
     display: flex;
     flex-direction: column;
@@ -1377,8 +1386,8 @@
     }
   }
 
-  /* "Load Changes" plus its command-preview panel, stacked above the */
-  /* separate "Clear Changes" row. */
+  /* "Load Changes" plus its command-preview panel, stacked above the
+     separate "Clear Changes" row. */
   .changes-bar {
     display: flex;
     flex-direction: column;
@@ -1426,9 +1435,9 @@
     min-width: 60px;
   }
 
-  /* Lays the board diagram out beside the remap table on wide */
-  /* viewports, and stacks them (diagram above table) once there's not */
-  /* enough room for both side by side. */
+  /* Lays the board diagram out beside the remap table on wide
+     viewports, and stacks them (diagram above table) once there's not
+     enough room for both side by side. */
   .table-with-diagram {
     display: flex;
     flex-wrap: wrap;
@@ -1452,9 +1461,9 @@
     text-align: center;
   }
 
-  /* No CSS sizing here -- width/height come from diagramWidth/ */
-  /* diagramHeight (see <script>), since this app's runtime doesn't */
-  /* support CSS aspect-ratio. */
+  /* No CSS sizing here -- width/height come from diagramWidth/
+     diagramHeight (see <script>), since this app's runtime doesn't
+     support CSS aspect-ratio. */
   .board-diagram-wrap {
     position: relative;
   }
@@ -1465,8 +1474,8 @@
     height: 100%;
   }
 
-  /* Shown in place of the table while a read is in flight -- matches */
-  /* Page.svelte's own loading spinner, smaller and inline. */
+  /* Shown in place of the table while a read is in flight -- matches
+     Page.svelte's own loading spinner, smaller and inline. */
   .table-loading {
     display: flex;
     align-items: center;
@@ -1555,9 +1564,9 @@
       }
     }
 
-    /* Fixed width keeps every row's dropdown the same size regardless */
-    /* of its own label length. :global(), since Select.svelte renders */
-    /* the actual <select> itself. */
+    /* Fixed width keeps every row's dropdown the same size regardless
+       of its own label length. :global(), since Select.svelte renders
+       the actual <select> itself. */
     tr:not(.add-row) td:last-child :global(select) {
       width: 104px;
     }

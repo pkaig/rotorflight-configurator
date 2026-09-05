@@ -23,6 +23,21 @@
  *      member individually.
  *   5. Frequency inputs (Freq1, Freq2, ...) prefer TIM2 or TIM5 when
  *      available.
+ *   6. A feature that needs DMA (motors, the LED strip -- see
+ *      feature_classifier.js's featureNeedsDma) prefers a timer option
+ *      whose pin/AF combination actually offers a DMA stream over one
+ *      that doesn't, whenever both are otherwise usable. A pin can list
+ *      several AFs where only some support DMA at all (see
+ *      timer_dma_lookup.js/MCU-all.json), and dma_allocator.js can only
+ *      ever assign DMA to whichever option is chosen *here* -- picking
+ *      a non-DMA-capable one for a DMA-needing feature leaves it with
+ *      no DMA regardless of anything the DMA allocator itself does.
+ *   7. Frequency inputs never use DMA regardless of which base they end
+ *      up on, so rule 5's TIM2/TIM5 preference defers to a base no
+ *      DMA-needing feature has a DMA-capable option on, whenever one is
+ *      available -- otherwise a freq input claiming a base purely for
+ *      its own convenience can cost a motor/the LED strip a DMA option
+ *      it has no alternative for.
  *
  * Allocation runs in a fixed order -- freq inputs, LED strip, S1-S3 as
  * a group, remaining servos, M1-M4 as a group, remaining motors, then
@@ -112,6 +127,24 @@ export function allocateTimers(features, reservedTimers = new Set()) {
     }
   }
 
+  // Every base that offers a DMA-capable option to at least one
+  // DMA-needing feature (rule 7) -- computed once up front the same
+  // way as criticalOwnersByBase, from every row's full option list
+  // regardless of allocation order. Frequency inputs never use DMA
+  // themselves (see feature_classifier.js's featureNeedsDma), so a
+  // freq input landing on one of these bases purely because rule 5
+  // happens to prefer it can silently cost a motor/the LED strip its
+  // only remaining DMA-capable choice -- see the freq loop below.
+  const dmaRelevantBases = new Set();
+  for (const row of rows) {
+    if (!row.needsDma) continue;
+    for (const opt of row.options) {
+      if (opt.base && (opt.dma?.length ?? 0) > 0) {
+        dmaRelevantBases.add(opt.base);
+      }
+    }
+  }
+
   // Whether a row could use a given option right now: not already
   // claimed, its base isn't owned by a different feature type, and
   // (when asked to) it isn't a base critical to some other feature.
@@ -140,25 +173,34 @@ export function allocateTimers(features, reservedTimers = new Set()) {
     }
   }
 
-  // Picks the best remaining option for a single row: the first
-  // non-negative, non-clashing candidate, or failing that the first
-  // non-clashing candidate at all. If literally every option clashes
-  // with something else already claimed, assigns the best of them
-  // anyway rather than leaving the row with nothing -- a feature
-  // always ends up with *something* to show/send as long as it has at
-  // least one timer option at all, even if it's one this allocator
-  // knows collides with another feature. Downstream code (see
-  // timer_dma_reconciler.js's buildTimerDmaCommands) is responsible
-  // for noticing that collision and refusing to actually send it,
-  // rather than this allocator silently leaving the feature
-  // unconfigured, which would read as "nothing wrong here" when
-  // something very much still is.
+  // Picks the best remaining option for a single row: preferring a
+  // non-negative, DMA-capable, non-clashing candidate when this
+  // feature needs DMA (rule 6), then any non-negative non-clashing
+  // candidate, or failing that the first non-clashing candidate at
+  // all. If literally every option clashes with something else already
+  // claimed, assigns the best of them anyway rather than leaving the
+  // row with nothing -- a feature always ends up with *something* to
+  // show/send as long as it has at least one timer option at all, even
+  // if it's one this allocator knows collides with another feature.
+  // Downstream code (see timer_dma_reconciler.js's
+  // buildTimerDmaCommands) is responsible for noticing that collision
+  // and refusing to actually send it, rather than this allocator
+  // silently leaving the feature unconfigured, which would read as
+  // "nothing wrong here" when something very much still is.
   function pickBestOption(row, label, avoidCritical = true) {
     const candidates = row.options.filter((o) => canUseOption(row, o, avoidCritical));
     const forced = candidates.length === 0 && row.options.length > 0;
     const pool = forced ? row.options : candidates;
+    const nonNegative = pool.filter((o) => !o.negative);
 
-    row.chosen = pool.find((o) => !o.negative) ?? pool[0] ?? null;
+    // See rule 6 -- a DMA-capable option is worth preferring over a
+    // merely non-negative one whenever this feature actually needs
+    // DMA, since this is the only place that choice ever gets made.
+    const dmaCapable = row.needsDma
+      ? nonNegative.filter((o) => (o.dma?.length ?? 0) > 0)
+      : [];
+
+    row.chosen = dmaCapable[0] ?? nonNegative[0] ?? pool[0] ?? null;
     row.rule = forced ? `${label} (forced -- every option clashes)` : label;
     if (row.chosen) registerUsage(row);
   }
@@ -198,7 +240,17 @@ export function allocateTimers(features, reservedTimers = new Set()) {
   // entirely within the group, are considered -- if none work out,
   // this is a no-op and every member is left for individual
   // allocation afterwards.
-  function tryGroup(groupNames, label) {
+  //
+  // preferDma (rule 6, M1-M4 only -- servos never need DMA) makes this
+  // try every candidate base twice: first restricted to each member's
+  // own DMA-capable options only, and only if that fails anywhere does
+  // it fall back to the plain, DMA-unaware search. A base that can seat
+  // the whole group with DMA to spare is strictly better than one that
+  // can't, since dma_allocator.js can only ever assign DMA to whichever
+  // channel is chosen here -- but a working, DMA-less assignment is
+  // still better than none, so the fallback pass keeps today's
+  // behaviour intact when no fully-DMA-capable base exists.
+  function tryGroup(groupNames, label, preferDma = false) {
     const groupRows = rows.filter((r) => groupNames.includes(r.feature));
     if (groupRows.length !== groupNames.length) return;
 
@@ -220,22 +272,35 @@ export function allocateTimers(features, reservedTimers = new Set()) {
       return !owners || [...owners].every((o) => groupNames.includes(o));
     });
 
-    for (const base of candidateBases) {
-      const perFeature = {};
-      for (const name of groupNames) {
-        const opts = optionsByBase[base][name];
-        const nonNegative = opts.filter((o) => !o.negative);
-        perFeature[name] = nonNegative.length > 0 ? nonNegative : opts;
-      }
-
-      const assignment = findUniqueChannelAssignment(perFeature);
-      if (assignment) {
-        for (const row of groupRows) {
-          row.chosen = assignment.get(row.feature);
-          row.rule = `${label}: grouped on ${base}`;
-          registerUsage(row);
+    for (const requireDma of preferDma ? [true, false] : [false]) {
+      for (const base of candidateBases) {
+        const perFeature = {};
+        let baseUsable = true;
+        for (const name of groupNames) {
+          const opts = optionsByBase[base][name];
+          const nonNegative = opts.filter((o) => !o.negative);
+          let pool = nonNegative.length > 0 ? nonNegative : opts;
+          if (requireDma) {
+            const dmaCapable = pool.filter((o) => (o.dma?.length ?? 0) > 0);
+            if (dmaCapable.length === 0) {
+              baseUsable = false;
+              break;
+            }
+            pool = dmaCapable;
+          }
+          perFeature[name] = pool;
         }
-        return;
+        if (!baseUsable) continue;
+
+        const assignment = findUniqueChannelAssignment(perFeature);
+        if (assignment) {
+          for (const row of groupRows) {
+            row.chosen = assignment.get(row.feature);
+            row.rule = `${label}: grouped on ${base}`;
+            registerUsage(row);
+          }
+          return;
+        }
       }
     }
   }
@@ -247,13 +312,24 @@ export function allocateTimers(features, reservedTimers = new Set()) {
   // (even one this allocator knows clashes with something) rather
   // than leaving the row with nothing, if every option is otherwise
   // excluded -- see pickBestOption's own comment for why.
+  //
+  // Rule 7: within `usable`, a base dmaRelevantBases doesn't list is
+  // tried before TIM2/TIM5 preference is even applied, not after --
+  // freq never uses DMA regardless of which base it lands on, so
+  // there's nothing for it to actually lose by skipping a DMA-capable
+  // base, while a motor/the LED strip landing on that same base could
+  // lose DMA outright. Only matters when it doesn't cost freq its
+  // preferred base anyway: if TIM2/TIM5 aren't DMA-relevant here, or
+  // no non-DMA-relevant option exists at all, this changes nothing.
   for (const row of rows.filter((r) => r.type === "freq")) {
     const usable = row.options.filter((o) => canUseOption(row, o, true) && !o.negative);
+    const nonDmaRelevant = usable.filter((o) => !dmaRelevantBases.has(o.base));
+    const pool = nonDmaRelevant.length > 0 ? nonDmaRelevant : usable;
     const forced = usable.length === 0 && row.options.length > 0;
     row.chosen =
-      usable.find((o) => o.base === "TIM2") ??
-      usable.find((o) => o.base === "TIM5") ??
-      usable[0] ??
+      pool.find((o) => o.base === "TIM2") ??
+      pool.find((o) => o.base === "TIM5") ??
+      pool[0] ??
       row.options.filter((o) => canUseOption(row, o, true))[0] ??
       (forced ? row.options[0] : null);
     row.rule = forced ? "freq: assigned (forced -- every option clashes)" : "freq: assigned";
@@ -270,8 +346,9 @@ export function allocateTimers(features, reservedTimers = new Set()) {
     pickBestOption(row, "servo: assigned");
   }
 
-  // 4) M1-M4 as a group, then whatever's left individually.
-  tryGroup(MOTOR_GROUP, "motor M1-M4");
+  // 4) M1-M4 as a group, then whatever's left individually. preferDma
+  // (rule 6): unlike S1-S3, motors need DMA.
+  tryGroup(MOTOR_GROUP, "motor M1-M4", true);
   for (const row of rows.filter((r) => r.type === "motor" && !r.chosen)) {
     pickBestOption(row, "motor: assigned");
   }

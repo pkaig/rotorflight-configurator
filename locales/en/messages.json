@@ -498,6 +498,9 @@
     "remapFcRunning": {
         "message": "Reading FC"
     },
+    "remapFcRunningProgress": {
+        "message": "Reading FC ({{percent}}%)"
+    },
     "remapFcLoadingHardware": {
         "message": "Loading hardware..."
     },

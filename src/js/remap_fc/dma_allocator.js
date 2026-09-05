@@ -7,8 +7,8 @@
  * A servo or frequency input never uses DMA regardless of any other
  * setting, so it's skipped entirely here -- see
  * feature_classifier.js's featureNeedsDma, and each row's own
- * needsDma. A stream can only serve one feature at a time, 
- * and a motor/the LED strip -- the outputs most sensitive to 
+ * needsDma. A stream can only serve one feature at a time,
+ * and a motor/the LED strip -- the outputs most sensitive to
  * DMA contention -- may take a stream a lower-priority
  * feature already claimed (though in practice, with servos/frequency
  * inputs excluded, the only lower-priority claimant left is a

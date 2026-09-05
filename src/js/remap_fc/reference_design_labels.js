@@ -119,7 +119,7 @@ export function buildReservedPins(referenceDesigns, boardDesign) {
 // A usage name that starts with "Port " (e.g. "Port A", "Port C") is a
 // generic, unlabelled UART/I2C connector meant for whatever the user
 // wants to attach to it -- there's nothing to automatically show until
-// something's actually wired there (see remap_fc.svelte's
+// something's actually wired there (see RemapFc.svelte's
 // setHardware). Every other non-reserved usage a reference design
 // documents (AUX, SBUS, TLM, RPM, ...) names a specific, purpose-built
 // connector that's worth showing on its own, the same as a

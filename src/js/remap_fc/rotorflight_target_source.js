@@ -2,7 +2,7 @@
  * File: src/js/remap_fc/rotorflight_target_source.js
  * A board with no Rotorflight-specific build of its own reports
  * "BTFL" (or nothing at all) as its board_design -- see
- * remap_fc.svelte's boardDiagramSrc for the same check. Its own
+ * RemapFc.svelte's isGenericBoard for the same check. Its own
  * `dump hardware` still only ever reports resources up to whatever
  * Rotorflight's own runtime was compiled to support (see
  * remap_table.js's MAX_VALID_MOTORS/MAX_VALID_SERVOS), even though

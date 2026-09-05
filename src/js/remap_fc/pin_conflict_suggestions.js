@@ -40,7 +40,7 @@ import { buildFeatureRows, reallocateTimersAndDma, buildTimerDmaCommands } from 
  * no knowledge of a board's reference design, so it only ever knows
  * `feature`/`otherFeature` by their raw CLI option keys (e.g. "M1"),
  * never a board's own connector name for them (e.g. "ESC"). Building
- * the label is the caller's job -- see remap_fc.svelte's
+ * the label is the caller's job -- see RemapFc.svelte's
  * suggestionLabel, which uses the same optionLabel() every other
  * option label in this tab goes through.
  */

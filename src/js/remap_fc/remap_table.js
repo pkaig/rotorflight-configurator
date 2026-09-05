@@ -20,29 +20,15 @@ import { buildResourceCommand } from "./hardware_parser.js";
 // compiled to support more. rotorflight_target_source.js is the one
 // place that can still surface a richer default set than that (from
 // the target's own definition on GitHub, for a board with no
-// Rotorflight-specific build of its own) -- see isOverCapacity below
-// for how those extra rows are handled once they do show up.
+// Rotorflight-specific build of its own). Such a beyond-capacity
+// option (e.g. "M5" on an 8-motor target) needs no special handling
+// of its own here -- TABLE_OPTION_KEYS/getRowSelectableOptions already
+// exclude it from ever being *picked* as a value, being capped at the
+// valid range themselves, and RemapFc.svelte's setHardware gives it a
+// row under the exact same occupancy rule as any other option: shown
+// when its default pin is occupied, offered via "+ Add" otherwise.
 export const MAX_VALID_MOTORS = 4;
 export const MAX_VALID_SERVOS = 8;
-
-const MOTOR_OR_SERVO_INDEX_RE = /^(M|S)(\d+)$/;
-
-// Whether optionKey names a motor/servo index beyond what Rotorflight
-// can actually use -- e.g. "M5" on an 8-motor Betaflight-shared
-// target. Exported so remap_fc.svelte can force these rows into the
-// "Set Option" placeholder state as soon as they're read (see
-// setHardware), rather than ever presenting one as if it were a real,
-// usable current option -- TABLE_OPTION_KEYS/getRowSelectableOptions
-// already exclude them from ever being *picked* as a value, being
-// capped at the valid range themselves, so this only needs checking
-// wherever a row's own identity (not its Current Option) is involved.
-export function isOverCapacity(optionKey) {
-  const match = optionKey.match(MOTOR_OR_SERVO_INDEX_RE);
-  if (!match) return false;
-  const [, prefix, indexStr] = match;
-  const index = Number(indexStr);
-  return prefix === "M" ? index > MAX_VALID_MOTORS : index > MAX_VALID_SERVOS;
-}
 
 /**
  * @typedef {Object} RemapRow
@@ -89,9 +75,9 @@ export const TABLE_OPTION_KEYS = [
 // Exported so callers can sort/filter an arbitrary set of option keys
 // back into this order, and so "+ Add" can offer the complete list.
 //
-// M5-M12/S9-S12 go beyond MAX_VALID_MOTORS/MAX_VALID_SERVOS — see
-// isOverCapacity's own comment for why a board can still report them
-// (via rotorflight_target_source.js) despite Rotorflight itself never
+// M5-M12/S9-S12 go beyond MAX_VALID_MOTORS/MAX_VALID_SERVOS — see that
+// comment for why a board can still report them (via
+// rotorflight_target_source.js) despite Rotorflight itself never
 // being able to use them. RX/TX go up to 12 and SDA/SCL up to 4 to
 // match the CLI's own resource catalog (`resource SERIAL_RX 12 ...`,
 // `resource I2C_SDA 4 ...`), even though only a handful of MCUs — none

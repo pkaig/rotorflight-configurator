@@ -12,13 +12,12 @@
  * timer_allocator.js/dma_allocator.js pass and turns its result into
  * the `timer`/`dma pin` CLI commands needed to apply it.
  *
- * Deliberately an all-or-nothing decision, a clash anywhere means 
- * every feature's timer and DMA is reallocated from scratch 
- * together, rather than patching just the clashing ones. 
- * The whole point of the base-exclusivity and critical-base 
- * rules is that one feature's "safe" choice depends on every 
- * other feature's choice too, so a partial reallocation could \
- * just move the clash elsewhere.
+ * Deliberately an all-or-nothing decision: a clash anywhere means
+ * every feature's timer and DMA is reallocated from scratch together,
+ * rather than patching just the clashing ones. The whole point of the
+ * base-exclusivity and critical-base rules is that one feature's
+ * "safe" choice depends on every other feature's choice too, so a
+ * partial reallocation could just move the clash elsewhere.
  *
  * timer_allocator.js/dma_allocator.js always assign every feature
  * *something*, even when literally every option available to it
@@ -48,7 +47,7 @@ import { allocateDma } from "./dma_allocator.js";
  *   Whichever of `options` this feature's HardwareMap entry currently
  *   points to (matched by AF), or null if it has none/an unrecognised
  *   one -- e.g. every feature the table's edits touched, since those
- *   are only ever given a pin, never a timer/DMA (see remap_fc.svelte's
+ *   are only ever given a pin, never a timer/DMA (see RemapFc.svelte's
  *   handleCurrentOptionChange).
  * @property {?import("./timer_dma_lookup.js").DmaChoice} currentDma -
  *   The DMA choice currentOption's own list points to at the
@@ -554,7 +553,7 @@ export function buildAllocationTable(featureRows, allocation, unresolved = []) {
  *   allocation is the raw result underlying calculatedTable -- callers
  *   that need a resolved feature's actual af/dma index (not just its
  *   human-readable/command-string form) read it from here, e.g.
- *   remap_fc.svelte's markApplied writing a just-sent allocation back
+ *   RemapFc.svelte's markApplied writing a just-sent allocation back
  *   into its own working state once it's actually been applied.
  */
 export function reconcileTimersAndDma(
