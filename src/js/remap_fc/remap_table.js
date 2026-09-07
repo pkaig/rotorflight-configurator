@@ -11,24 +11,35 @@
 import { buildResourceCommand } from "./hardware_parser.js";
 
 // Rotorflight's own hard limits on how many motor/servo outputs it can
-// actually drive, regardless of how many a target's own hardware
-// defines (see feature_classifier.js's MOTOR_RE/SERVO_RE, which
-// already cap classification the same way). A target shared with
-// Betaflight commonly defines more than this -- up to 8 motors,
-// sometimes 12 servos -- but a live `dump hardware` from Rotorflight
-// itself never reports beyond these, since its own runtime was never
-// compiled to support more. rotorflight_target_source.js is the one
-// place that can still surface a richer default set than that (from
-// the target's own definition on GitHub, for a board with no
-// Rotorflight-specific build of its own). Such a beyond-capacity
-// option (e.g. "M5" on an 8-motor target) needs no special handling
-// of its own here -- TABLE_OPTION_KEYS/getRowSelectableOptions already
-// exclude it from ever being *picked* as a value, being capped at the
-// valid range themselves, and RemapFc.svelte's setHardware gives it a
-// row under the exact same occupancy rule as any other option: shown
-// when its default pin is occupied, offered via "+ Add" otherwise.
+// actually drive (see feature_classifier.js's MOTOR_RE/SERVO_RE, which
+// caps classification the same way). A Betaflight-shared target can
+// define more -- up to 8 motors, sometimes 12 servos -- surfaced only
+// via rotorflight_target_source.js for a board with no
+// Rotorflight-specific build of its own, since Rotorflight's own
+// `dump hardware` never reports beyond these. A beyond-capacity option
+// (e.g. "M5") still gets a normal row (RemapFc.svelte's setHardware)
+// so its pin can be repurposed, but must never be *choosable* -- see
+// isOverCapacity below.
 export const MAX_VALID_MOTORS = 4;
 export const MAX_VALID_SERVOS = 8;
+
+const MOTOR_OR_SERVO_INDEX_RE = /^(M|S)(\d+)$/;
+
+// Whether optionKey names a motor/servo index beyond what Rotorflight
+// can actually use. Used by getRowSelectableOptions to keep such a key
+// from ever being offered as a value, regardless of source -- a
+// namedConnectorKeys caller passes in whatever a reference design
+// documents, which isn't guaranteed to respect Rotorflight's own
+// capacity. Deliberately not applied to row visibility (setHardware)
+// or "+ Add" (getAddableOptions), which still need the row itself to
+// exist so its pin can be reassigned to something valid.
+export function isOverCapacity(optionKey) {
+  const match = optionKey.match(MOTOR_OR_SERVO_INDEX_RE);
+  if (!match) return false;
+  const [, prefix, indexStr] = match;
+  const index = Number(indexStr);
+  return prefix === "M" ? index > MAX_VALID_MOTORS : index > MAX_VALID_SERVOS;
+}
 
 /**
  * @typedef {Object} RemapRow
@@ -75,9 +86,9 @@ export const TABLE_OPTION_KEYS = [
 // Exported so callers can sort/filter an arbitrary set of option keys
 // back into this order, and so "+ Add" can offer the complete list.
 //
-// M5-M12/S9-S12 go beyond MAX_VALID_MOTORS/MAX_VALID_SERVOS — see that
-// comment for why a board can still report them (via
-// rotorflight_target_source.js) despite Rotorflight itself never
+// M5-M12/S9-S12 go beyond MAX_VALID_MOTORS/MAX_VALID_SERVOS — see
+// isOverCapacity's own comment for why a board can still report them
+// (via rotorflight_target_source.js) despite Rotorflight itself never
 // being able to use them. RX/TX go up to 12 and SDA/SCL up to 4 to
 // match the CLI's own resource catalog (`resource SERIAL_RX 12 ...`,
 // `resource I2C_SDA 4 ...`), even though only a handful of MCUs — none
@@ -306,12 +317,18 @@ export function getAddableOptions(defaultHardware, visibleOptions) {
  *   requiring the caller to filter it out first, since offering the
  *   same option twice in one dropdown is a Svelte each_key_duplicate
  *   crash, not just a cosmetic glitch, and not every future caller can
- *   be trusted to remember that.
+ *   be trusted to remember that. A beyond-capacity one (see
+ *   isOverCapacity) is filtered out below the same way, since a
+ *   reference design has no reason to know Rotorflight's own motor/
+ *   servo limits when it names a connector.
  * @returns {string[]}
  */
 export function getRowSelectableOptions(claimedOptions, namedConnectorKeys = []) {
   return [...new Set([...TABLE_OPTION_KEYS, ...namedConnectorKeys])].filter(
-    (option) => !claimedOptions.includes(option) && isEligibleToAdd(option, claimedOptions),
+    (option) =>
+      !isOverCapacity(option) &&
+      !claimedOptions.includes(option) &&
+      isEligibleToAdd(option, claimedOptions),
   );
 }
 
