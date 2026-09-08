@@ -745,7 +745,27 @@
   </button>
 {/snippet}
 
-<Page {header} loading={false}>
+<!-- Action row, only while something is staged -- same bottom toolbar
+     every other Svelte tab uses for Revert / Save & Reboot. The full
+     list of commands shows in the "Pending Changes" card in the body
+     once "Show details" is on. -->
+{#snippet toolbar()}
+  <button class="btn" onclick={handleClearChanges} disabled={running}>
+    {$i18n.t("buttonRevert")}
+  </button>
+  <button
+    class="btn"
+    onclick={handleLoadChanges}
+    disabled={running || pinConflictResult.unresolvedFeatures.length > 0}
+    title={pinConflictResult.unresolvedFeatures.length > 0
+      ? $i18n.t("remapFcLoadChangesBlocked")
+      : ""}
+  >
+    {running ? $i18n.t("remapFcApplying") : $i18n.t("buttonSaveReboot")}
+  </button>
+{/snippet}
+
+<Page {header} toolbar={hasStagedCommands && toolbar} loading={false}>
   <!-- Before a read, offer the button that triggers one, plus a short
        explanation of what the tab actually does -- everything else
        below only has anything to show once the FC's actually been
@@ -754,17 +774,22 @@
   {#if !hasRead}
     <div class="intro-card">
       <Section label="remapFcIntroHeading">
-        <div class="intro-content">
-          <p>{$i18n.t("remapFcIntroDescription")}</p>
-          <img
-            class="intro-illustration"
-            src="/images/remap_fc/REMAP_ILLUSTRATION.svg"
-            alt=""
-          />
+        <!-- One padded wrapper for the whole card body: Section's own
+             .content only insets 4px, which leaves buttons and text
+             hugging the card edge. -->
+        <div class="intro-body">
+          <div class="intro-content">
+            <p>{$i18n.t("remapFcIntroDescription")}</p>
+            <img
+              class="intro-illustration"
+              src="/images/remap_fc/REMAP_ILLUSTRATION.svg"
+              alt=""
+            />
+          </div>
+          <button class="btn run-btn" onclick={onClick} disabled={running}>
+            {runButtonLabel}
+          </button>
         </div>
-        <button class="btn run-btn" onclick={onClick} disabled={running}>
-          {runButtonLabel}
-        </button>
       </Section>
     </div>
   {/if}
@@ -1108,49 +1133,6 @@
     </div>
   {/if}
 
-  <!-- "Load Changes" sends the staged diff (resource + timer/DMA +
-       save); the panel next to it previews the exact commands. -->
-  {#if hasStagedCommands}
-    <div class="pending-changes-card">
-      <Section label="remapFcChangesHeading">
-        <div class="changes-bar">
-          <div class="changes-row">
-            <button
-              class="btn apply-btn"
-              onclick={handleLoadChanges}
-              disabled={running ||
-                pinConflictResult.unresolvedFeatures.length > 0}
-              title={pinConflictResult.unresolvedFeatures.length > 0
-                ? $i18n.t("remapFcLoadChangesBlocked")
-                : ""}
-            >
-              {running
-                ? $i18n.t("remapFcApplying")
-                : $i18n.t("remapFcLoadChangesButton")}
-            </button>
-
-            <details class="commands-panel">
-              <summary
-                >{$i18n.t("remapFcPendingCommands", {
-                  count: commandsToSend.length,
-                })}
-              </summary>
-              <pre>{commandsToSend.join("\n")}</pre>
-            </details>
-          </div>
-
-          <button
-            class="btn clear-btn"
-            onclick={handleClearChanges}
-            disabled={running}
-          >
-            {$i18n.t("remapFcClearChangesButton")}
-          </button>
-        </div>
-      </Section>
-    </div>
-  {/if}
-
   <!-- A genuine problem (unresolvedFeatures) always stays visible
        regardless of "Show details" -- only the table itself hides
        behind the toggle. -->
@@ -1202,15 +1184,28 @@
         </Section>
       </div>
     {/if}
+
+    <!-- The exact CLI batch "Load Changes" will send, revealed by the
+         same "Show details" toggle as the calculated-config table. -->
+    {#if showCalculatedDetails && hasStagedCommands}
+      <div class="pending-changes-card">
+        <Section label="remapFcChangesHeading">
+          <pre class="pending-commands">{commandsToSend.join("\n")}</pre>
+        </Section>
+      </div>
+    {/if}
   {/if}
 </Page>
 
 <style lang="scss">
-  .run-btn {
+  .btn {
     @extend %button;
+  }
+
+  /* align-self keeps it from stretching to the intro card's full width;
+     spacing off the text/illustration above comes from .intro-body's gap. */
+  .run-btn {
     align-self: flex-start;
-    margin: 16px 16px 24px 16px;
-    padding: 0 24px;
   }
 
   /* Custom Section headers (board-info card, live-warning card):
@@ -1257,7 +1252,6 @@
   /* Wider than .board-info-card since the table has four columns, but
      still capped rather than spanning the full page. */
   .calculated-config-card,
-  .pending-changes-card,
   .pin-conflict-card,
   .mcu-unsupported-card {
     max-width: 560px;
@@ -1267,13 +1261,21 @@
     max-width: 700px;
   }
 
+  /* Wraps the whole intro card body in real padding -- Section's own
+     .content only gives 4px, so without this the text and Read FC
+     button sit flush against the card edge. */
+  .intro-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px 16px 12px;
+  }
+
   .intro-content {
     display: flex;
     align-items: center;
     gap: 20px;
     flex-wrap: wrap;
-    /* lines up with .run-btn's own left margin below */
-    padding-left: 16px;
 
     p {
       flex: 1 1 280px;
@@ -1386,45 +1388,27 @@
     }
   }
 
-  /* "Load Changes" plus its command-preview panel, stacked above the
-     separate "Clear Changes" row. */
-  .changes-bar {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  /* Read-only preview of exactly what "Save and Reboot" will paste into
+     the CLI. Same width cap as the calculated-config card it sits
+     beside. */
+  .pending-changes-card {
+    max-width: 560px;
   }
 
-  .changes-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .apply-btn,
-  .clear-btn {
-    @extend %button;
-    align-self: flex-start;
-  }
-
-  .commands-panel {
+  .pending-commands {
+    margin: 0;
+    padding: 8px 12px;
+    max-height: 50vh;
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-input-bg);
+    white-space: pre;
     color: var(--color-text);
-
-    summary {
-      cursor: pointer;
-      opacity: 0.8;
-    }
-
-    pre {
-      margin: 6px 0 0;
-      padding: 8px 12px;
-      border: 1px solid var(--color-border);
-      border-radius: 4px;
-      white-space: pre-wrap;
-    }
   }
 
-  /* Header help button, matching every other tab's <Page> header. */
+  /* Header spacer: pushes the help button to the right, matching every
+     other tab's <Page> header. */
   .grow {
     flex-grow: 1;
   }
