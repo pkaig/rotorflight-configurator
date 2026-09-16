@@ -504,6 +504,9 @@
     "remapFcLoadingHardware": {
         "message": "Loading hardware..."
     },
+    "remapFcCliEntryTimeout": {
+        "message": "Flight controller did not respond to enter CLI mode. Check the connection and try again."
+    },
     "remapFcError": {
         "message": "Error reading FC"
     },

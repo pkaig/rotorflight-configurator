@@ -96,6 +96,17 @@ function unresolvedAfterReallocation(
  * @param {import("./remap_table.js").RemapRow[]} tableRows - Every
  *   row currently in the table, as candidate target pins to move an
  *   unresolved feature onto.
+ * @param {string[]} unresolvedFeatures - The features a reallocation
+ *   pass over workingCurrent as it stands right now leaves unresolved
+ *   (timer_dma_reconciler.js's reconcileTimersAndDma already computes
+ *   this once per edit as reconciled.unresolved; it's passed in rather
+ *   than recomputed here so this search can never disagree with it
+ *   about whether there's a clash to search a fix for in the first
+ *   place -- recomputing independently risked the two falling out of
+ *   sync, since reconcileTimersAndDma skips reallocation entirely when
+ *   the *current* allocation already has no clash, while a fresh
+ *   reallocation from scratch can land on a different, occasionally
+ *   worse, outcome than the one already in place).
  * @returns {PinConflictSearchResult}
  */
 export function findPinConflictSuggestions(
@@ -105,14 +116,8 @@ export function findPinConflictSuggestions(
   reservedDmaStreams,
   reservedTimers,
   tableRows,
+  unresolvedFeatures,
 ) {
-  const unresolvedFeatures = unresolvedAfterReallocation(
-    workingCurrent,
-    mcuType,
-    mcuAllData,
-    reservedDmaStreams,
-    reservedTimers,
-  );
   if (unresolvedFeatures.length === 0) return { unresolvedFeatures, suggestions: [] };
 
   const occupantOf = (pin) =>

@@ -113,8 +113,11 @@ export function buildFeatureRows(workingCurrent, mcuType, mcuAllData) {
 /**
  * @typedef {Object} ClashReport
  * @property {boolean} hasClash
- * @property {string[]} reasons - Human-readable descriptions, for
- *   logging/debugging -- not shown in the UI.
+ * @property {string[]} reasons - Human-readable descriptions of each
+ *   clash found, joined and shown directly in the allocation-invalid
+ *   warning panel (see RemapFc.svelte's use of
+ *   remapFcAllocationInvalidWarning) -- word them for a user reading
+ *   them there, not just for debugging.
  */
 
 /**

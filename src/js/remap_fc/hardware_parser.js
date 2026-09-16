@@ -187,29 +187,3 @@ export function buildResourceCommand(optionKey, pin) {
   // its own commands.
   return `resource ${tag} ${index} ${pin ?? "NONE"}`;
 }
-
-/**
- * Builds the `timer`/`dma pin` CLI commands that put every pin in the
- * given HardwareMap back exactly as it was recorded -- the inverse of
- * parsePinMetadata's per-pin parsing, using each entry's own `timer`
- * (AF) and `dma` (index) fields verbatim rather than computing
- * anything. Used to replay a `dump hardware` snapshot's timer/DMA
- * state back onto the flight controller after `defaults nosave` has
- * overwritten it in RAM -- see remap_fc.js's #doRunSequence.
- * @param {HardwareMap} hardwareMap
- * @returns {string[]}
- */
-export function buildTimerDmaReplayCommands(hardwareMap) {
-  const commands = [];
-
-  for (const entry of Object.values(hardwareMap)) {
-    if (entry.timer !== undefined) {
-      commands.push(`timer ${entry.pin} ${entry.timer}`);
-    }
-    if (entry.dma !== undefined) {
-      commands.push(`dma pin ${entry.pin} ${entry.dma}`);
-    }
-  }
-
-  return commands;
-}

@@ -41,6 +41,17 @@ const BULK_TRANSFER_TIMEOUT_MS = 180000;
 // working save is ever expected to take anywhere near this long.
 const REBOOT_TIMEOUT_MS = 8000;
 
+// How long #activateCli waits for CONFIGURATOR.cliEngineValid to flip
+// true after sending the CLI entry trigger, before giving up -- entry
+// normally completes within a second, so this is purely to bound the
+// pathological case (the board never responds at all) rather than a
+// working entry ever needing anywhere near this long. Every other step
+// in this file's sequences is already timeout-bounded (see
+// BULK_TRANSFER_TIMEOUT_MS, REBOOT_TIMEOUT_MS); this was the one gap
+// left unbounded, which could hang "Read FC"/"Load Changes" forever
+// with the UI stuck on its loading spinner and no error ever shown.
+const CLI_ENTRY_TIMEOUT_MS = 10000;
+
 // Races `promise` against a timeout, rejecting with an error naming
 // `label` if it fires first. Used to bound the two bulk-data steps in
 // #doRunSequence -- see BULK_TRANSFER_TIMEOUT_MS.
@@ -141,6 +152,12 @@ class RemapFcTab {
   /** @type {?Promise<void>} */
   #runSequencePromise = null;
 
+  // Bumped by every #waitForIdle() call, and used there to tell apart
+  // "I'm still the watcher whose subscription is live" from "a newer
+  // #waitForIdle() call has since taken over" -- see that method's own
+  // comment for the race this guards against.
+  #idleWatcherToken = 0;
+
   // Read-only accessors so other code (e.g. tests, future features) can
   // inspect the last parsed hardware state without reaching into
   // private fields.
@@ -207,11 +224,12 @@ class RemapFcTab {
       return Promise.resolve();
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       CONFIGURATOR.cliEngineActive = true;
       CONFIGURATOR.cliTab = "remap_fc";
       this.#cliEngine.enterCliMode();
 
+      const start = performance.now();
       const waitForValidCliEngine = setInterval(() => {
         if (CONFIGURATOR.cliEngineValid) {
           clearInterval(waitForValidCliEngine);
@@ -220,6 +238,9 @@ class RemapFcTab {
             () => resolve(),
             IDLE_THRESHOLD_MS,
           );
+        } else if (performance.now() - start > CLI_ENTRY_TIMEOUT_MS) {
+          clearInterval(waitForValidCliEngine);
+          reject(new Error(i18n.getMessage("remapFcCliEntryTimeout")));
         }
       }, IDLE_THRESHOLD_MS);
     });
@@ -228,7 +249,21 @@ class RemapFcTab {
   // Resolves once no CLI output has been received for IDLE_THRESHOLD_MS.
   // Commands aren't response-synchronized, so this is how we know a
   // command (e.g. a dump) has actually finished producing output.
+  //
+  // #cliEngine only ever tracks one response callback at a time (see
+  // cli_engine.js's subscribeResponseCallback), so if a call here gets
+  // abandoned by an outer withTimeout() race -- its own interval left
+  // running because nothing cancels it when the race's loser is
+  // ignored -- and a later #waitForIdle() call then subscribes its own
+  // callback, the abandoned watcher must not call
+  // unsubscribeResponseCallback() once its own stale idle check
+  // eventually fires: that would sever the *newer* call's live
+  // subscription instead of its own, making it resolve early, before
+  // the command it's actually waiting on has finished producing
+  // output. #idleWatcherToken tells the two apart -- only whichever
+  // call is still the most recent one actually unsubscribes.
   #waitForIdle() {
+    const token = ++this.#idleWatcherToken;
     return new Promise((resolve) => {
       let lastReceived = performance.now();
       this.#cliEngine.subscribeResponseCallback(() => {
@@ -241,7 +276,9 @@ class RemapFcTab {
         () => {
           if (performance.now() - lastReceived > IDLE_THRESHOLD_MS) {
             GUI.interval_remove(intervalName);
-            this.#cliEngine.unsubscribeResponseCallback();
+            if (token === this.#idleWatcherToken) {
+              this.#cliEngine.unsubscribeResponseCallback();
+            }
             resolve();
           }
         },
@@ -362,14 +399,10 @@ class RemapFcTab {
       // for the table; there's no need to also capture (and never any
       // intention of restoring) the FC's full factory-default config.
       const defaultDump = await this.#runCommandAndCapture("dump hardware");
-      console.log("remap_fc: dump hardware (defaults) output", defaultDump);
 
       this.#currentHardware = parseHardwareDump(currentDump);
       this.#defaultHardware = parseHardwareDump(defaultDump);
       this.#mcuType = parseMcuType(currentDump);
-      console.log("remap_fc: currentHardware", this.#currentHardware);
-      console.log("remap_fc: defaultHardware", this.#defaultHardware);
-      console.log("remap_fc: mcuType", this.#mcuType);
 
       // A board with no Rotorflight-specific build of its own (see
       // RemapFc.svelte's isGenericBoard for the same check) only

@@ -220,11 +220,22 @@
   // default isn't a problem worth flagging, unlike genuinely empty
   // (.subdued) -- and its own card explains what "default" means for it
   // (see cardDescription).
+  //
+  // Filters out a feature with no matching pinRow: that happens when
+  // the live config already has this feature CLI-remapped (outside
+  // this tool) onto a pin that isn't any resource's own default pin,
+  // so no visible FC Label row's defaultPin matches it. There's no row
+  // for such a feature's wire to point at, so it's excluded here
+  // rather than reaching the template with pinRow: null -- every
+  // consumer below (the {#each} key, the wire link lookup, the
+  // onclick) dereferences pinRow.option unconditionally.
   let featureRows = $derived(
-    TABLE_OPTION_KEYS.filter((key) => key in workingCurrent).map((key) => ({
-      key,
-      pinRow: tableRows.find((row) => row.currentOption === key) ?? null,
-    })),
+    TABLE_OPTION_KEYS.filter((key) => key in workingCurrent)
+      .map((key) => ({
+        key,
+        pinRow: tableRows.find((row) => row.currentOption === key) ?? null,
+      }))
+      .filter((featureRow) => featureRow.pinRow !== null),
   );
 
   // One connecting wire per Feature row whose pad still has a row on
@@ -236,7 +247,7 @@
     featureRows
       .map((featureRow, rightIndex) => {
         const leftIndex = tableRows.findIndex(
-          (row) => row.option === featureRow.pinRow?.option,
+          (row) => row.option === featureRow.pinRow.option,
         );
         return leftIndex === -1 ? null : { leftIndex, rightIndex };
       })
@@ -720,10 +731,12 @@
   let unresolvedFeatures = $derived(reconciled.unresolved);
 
   // Candidate pin swaps/moves that would let reallocation resolve
-  // everything, plus which features are still genuinely unresolved
-  // (see pin_conflict_suggestions.js for the search). suggestions can
-  // still be empty with unresolvedFeatures non-empty, when no single
-  // swap/move fixes it.
+  // everything, for whichever features `reconciled` already found
+  // unresolved -- passing reconciled.unresolved in (rather than having
+  // this recompute its own "unresolved" independently) guarantees the
+  // two can never disagree about whether there's a clash to suggest a
+  // fix for. suggestions can still be empty with unresolvedFeatures
+  // non-empty, when no single swap/move fixes it.
   let pinConflictResult = $derived(
     hasRead
       ? findPinConflictSuggestions(
@@ -733,6 +746,7 @@
           reservedDmaStreams,
           reservedTimers,
           tableRows,
+          unresolvedFeatures,
         )
       : { unresolvedFeatures: [], suggestions: [] },
   );

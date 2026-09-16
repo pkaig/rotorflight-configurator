@@ -314,9 +314,41 @@ GuiControl.prototype.tab_switch_allowed = function (callback) {
 // this used to do, could pull the rug out from under that wait and
 // leave it unresolved forever, so cleanup's callback (and therefore the
 // next tab's initialize()) would never fire.
+//
+// CLEANUP_TIMEOUT_MS guards the opposite failure: cleanup() never
+// calling back at all, e.g. because it's waiting on a serial write that
+// will never resolve once the device has actually been unplugged. Every
+// caller of tab_switch_reload/tab_switch_cleanup (including the
+// disconnect flow in serial_backend.js, which blocks finishClose() on
+// tab_switch_cleanup's callback) needs a guarantee that teardown
+// eventually proceeds, so a timeout forces it through rather than
+// hanging the whole app on one stuck tab.
+const CLEANUP_TIMEOUT_MS = 5000;
+
+function cleanupTabWithTimeout(tab, onDone) {
+    let done = false;
+    const finish = () => {
+        if (done) {
+            return;
+        }
+        done = true;
+        onDone();
+    };
+
+    const timer = setTimeout(() => {
+        console.error(`GUI: ${tab.tabName ?? "tab"} cleanup() did not call back within ${CLEANUP_TIMEOUT_MS}ms — forcing teardown to continue`);
+        finish();
+    }, CLEANUP_TIMEOUT_MS);
+
+    tab.cleanup(() => {
+        clearTimeout(timer);
+        finish();
+    });
+}
+
 GuiControl.prototype.tab_switch_reload = function (callback) {
     if (this.current_tab) {
-        this.current_tab.cleanup(() => {
+        cleanupTabWithTimeout(this.current_tab, () => {
             MSP.callbacks_cleanup();
             this.timeout_kill_all();
             this.interval_kill_all();
@@ -331,7 +363,7 @@ GuiControl.prototype.tab_switch_reload = function (callback) {
 
 GuiControl.prototype.tab_switch_cleanup = function (callback) {
     if (this.current_tab) {
-        this.current_tab.cleanup(() => {
+        cleanupTabWithTimeout(this.current_tab, () => {
             MSP.callbacks_cleanup();
             this.timeout_kill_all();
             this.interval_kill_all();
