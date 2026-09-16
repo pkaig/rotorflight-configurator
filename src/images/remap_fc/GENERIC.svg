@@ -9,11 +9,13 @@
   the real board), copper pads, an
   LQFP-style MCU with pin leads (deliberately unbranded — this is the
   generic, no-specific-vendor fallback), a scattering of passives and
-  a small SOIC IC, and a USB-C receptacle. No pin labels, since none
-  are known for an arbitrary board; only a plain header of square
-  copper pads on the right edge, matching the same "pins on the
-  right" convention every diagram in this set follows. Shown by
-  remap_fc.svelte for a board with no cased diagram of its own (see
+  a small SOIC IC, and a USB-C receptacle. No pin header drawn on the
+  right edge (there used to be one, a plain row of square copper
+  pads) — RemapFc.svelte's own FC Label column and its wires already
+  draw real, live pin connections right where this artwork's edge
+  sits, so a second, purely decorative row of pads there just
+  duplicated and visually clashed with them. Shown by remap_fc.svelte
+  for a board with no cased diagram of its own (see
   boardDiagramSrc) — CASED_GENERIC.svg's own file comment explains
   why its viewBox is a 280x188 landscape crop rather than this file's
   280x280 square one: this board's own shape genuinely is square (a
@@ -101,18 +103,4 @@
   <rect x="10" y="132" width="20" height="56" rx="4" fill="#c9a227" />
   <circle cx="20" cy="145" r="4" fill="#0d0f12" />
   <circle cx="20" cy="175" r="4" fill="#0d0f12" />
-
-  <!-- Pin header, right edge: square copper pads with a via hole -->
-  <g fill="#c9a227">
-    <rect x="284" y="59" width="16" height="16" rx="3" /><rect x="284" y="89" width="16" height="16" rx="3" />
-    <rect x="284" y="119" width="16" height="16" rx="3" /><rect x="284" y="149" width="16" height="16" rx="3" />
-    <rect x="284" y="179" width="16" height="16" rx="3" /><rect x="284" y="209" width="16" height="16" rx="3" />
-    <rect x="284" y="239" width="16" height="16" rx="3" />
-  </g>
-  <g fill="#0d0f12">
-    <circle cx="292" cy="67" r="4" /><circle cx="292" cy="97" r="4" />
-    <circle cx="292" cy="127" r="4" /><circle cx="292" cy="157" r="4" />
-    <circle cx="292" cy="187" r="4" /><circle cx="292" cy="217" r="4" />
-    <circle cx="292" cy="247" r="4" />
-  </g>
 </svg>

@@ -1,19 +1,75 @@
 /**
  * File: src/js/remap_fc/reference_design_labels.js
  * Builds a pin -> friendly label lookup from reference_designs.json,
- * for the design family matching the connected board (e.g. "F7A1" ->
- * "F7A"), so the remap table and "+ Add" can show the board's own
- * silkscreen naming (e.g. "ESC", "TAIL", "Port A Rx") alongside the
- * CLI's own MOTOR/SERVO/SERIAL_RX numbering. Also exports
- * expandOptionName, a reference-design-independent fallback that
- * spells out an option key's own CLI shorthand (e.g. "S1" ->
- * "Servo 1") for boards with no matching reference design at all.
+ * for whichever entry matches the connected board, so the remap table
+ * and "+ Add" can show the board's own silkscreen naming (e.g. "ESC",
+ * "TAIL", "Port A Rx") alongside the CLI's own MOTOR/SERVO/SERIAL_RX
+ * numbering. Also exports expandOptionName, a reference-design-
+ * independent fallback that spells out an option key's own CLI
+ * shorthand (e.g. "S1" -> "Servo 1") for boards with no matching
+ * reference design at all.
+ *
+ * A reference_designs.json entry is looked up one of two ways (see
+ * findUsages): primarily by design *family* -- the first three
+ * characters of FC.CONFIG.boardDesign (e.g. "F7A1" -> "F7A") -- for an
+ * official Rotorflight reference design, which several individual
+ * board models can share. Failing that, by the board's own reported
+ * name (FC.CONFIG.boardName) instead, case-insensitively and as a
+ * *prefix* match rather than requiring an exact one, for a board with
+ * no reference design at all -- a manufacturer that laid out its own
+ * pin assignments from scratch and is only documented here under its
+ * own board name, not a shared family. The prefix match matters
+ * because a manufacturer's own boardName routinely carries extra
+ * trailing detail no product-line key should have to enumerate --
+ * e.g. "FLYDRAGON_PRO42688" (the trailing digits are a specific
+ * MCU/revision code) still matches a "FLYDRAGON_PRO" entry.
  */
 
-// A design family is its board design's first three characters, e.g.
-// "F7A1" -> "F7A", "F7C5" -> "F7C".
+// Design family: a board design's first three characters, e.g. "F7A1"
+// -> "F7A", "F7C5" -> "F7C". null for a board with no boardDesign at
+// all (an undocumented target, or one -- like a manufacturer's own
+// custom layout -- that was simply never assigned one).
 function designFamily(boardDesign) {
   return boardDesign ? boardDesign.slice(0, 3) : null;
+}
+
+// The design-family half of findUsages below -- an official
+// Rotorflight reference design, shared by several board models.
+function findUsagesByFamily(referenceDesigns, boardDesign) {
+  const family = designFamily(boardDesign);
+  return family && referenceDesigns?.[family] ? referenceDesigns[family] : null;
+}
+
+// The board-name half of findUsages below -- a manufacturer's own
+// custom design, documented under its own boardName rather than a
+// shared family (see this file's own header comment for the prefix
+// matching rule). Exported separately from findUsages, rather than
+// folded into it as a private detail, because buildDesignOrder below
+// deliberately only ever consults *this* half: reordering the FC
+// Label column to match a manufacturer's own physical pin layout only
+// makes sense for a manufacturer's own design, not an official
+// Rotorflight reference design's -- F7A/F7B/F7C's own usage order is
+// just upstream MCU-Pin-Allocation-table extraction order, with no
+// intentional display sequence to preserve, and reordering by it would
+// make those boards worse, not better.
+export function findUsagesByName(referenceDesigns, boardName) {
+  if (!referenceDesigns || !boardName) return null;
+  const lowerName = boardName.toLowerCase();
+  const nameKey = Object.keys(referenceDesigns).find((key) =>
+    lowerName.startsWith(key.toLowerCase()),
+  );
+  return nameKey ? referenceDesigns[nameKey] : null;
+}
+
+// Resolves which reference_designs.json top-level key actually applies
+// to the connected board -- see this file's own header comment for
+// the two ways that can happen -- and returns its usages object, or
+// null if neither matched.
+function findUsages(referenceDesigns, boardDesign, boardName) {
+  return (
+    findUsagesByFamily(referenceDesigns, boardDesign) ??
+    findUsagesByName(referenceDesigns, boardName)
+  );
 }
 
 // Converts a reference design's own pin spelling ("PA9", "PC12") to
@@ -40,11 +96,13 @@ function directionSuffix(usageEntry) {
 /**
  * @param {Object} referenceDesigns - The parsed contents of reference_designs.json.
  * @param {?string} boardDesign - e.g. "F7C5", from FC.CONFIG.boardDesign.
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName
+ *   -- the fallback lookup used when boardDesign matches no family (see
+ *   findUsages).
  * @returns {Object.<string, string>} pin (e.g. "A09") -> friendly label (e.g. "ESC", "Port A Rx").
  */
-export function buildReferenceLabels(referenceDesigns, boardDesign) {
-  const family = designFamily(boardDesign);
-  const usages = referenceDesigns?.[family];
+export function buildReferenceLabels(referenceDesigns, boardDesign, boardName) {
+  const usages = findUsages(referenceDesigns, boardDesign, boardName);
   if (!usages) return {};
 
   const labels = {};
@@ -97,13 +155,15 @@ const RESERVED_USAGE_NAMES = new Set([
 /**
  * @param {Object} referenceDesigns - The parsed contents of reference_designs.json.
  * @param {?string} boardDesign - e.g. "F7C5", from FC.CONFIG.boardDesign.
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName
+ *   -- the fallback lookup used when boardDesign matches no family (see
+ *   findUsages).
  * @returns {Set<string>} pins (e.g. "C09") reserved for fixed onboard
  *   sensor/support wiring per the board's reference design -- these
  *   should never be offered for reassignment.
  */
-export function buildReservedPins(referenceDesigns, boardDesign) {
-  const family = designFamily(boardDesign);
-  const usages = referenceDesigns?.[family];
+export function buildReservedPins(referenceDesigns, boardDesign, boardName) {
+  const usages = findUsages(referenceDesigns, boardDesign, boardName);
   if (!usages) return new Set();
 
   const pins = new Set();
@@ -131,6 +191,9 @@ function isGenericPortUsage(usageName) {
 /**
  * @param {Object} referenceDesigns - The parsed contents of reference_designs.json.
  * @param {?string} boardDesign - e.g. "F7C5", from FC.CONFIG.boardDesign.
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName
+ *   -- the fallback lookup used when boardDesign matches no family (see
+ *   findUsages).
  * @returns {Set<string>} pins (e.g. "A03") for named, purpose-built
  *   connectors this reference design documents (AUX, SBUS, TLM, RPM,
  *   ...) -- these should always get their own row once the board's
@@ -138,9 +201,8 @@ function isGenericPortUsage(usageName) {
  *   them, unlike a generic "Port X" connector or reserved sensor/
  *   support wiring (see buildReservedPins).
  */
-export function buildNamedConnectorPins(referenceDesigns, boardDesign) {
-  const family = designFamily(boardDesign);
-  const usages = referenceDesigns?.[family];
+export function buildNamedConnectorPins(referenceDesigns, boardDesign, boardName) {
+  const usages = findUsages(referenceDesigns, boardDesign, boardName);
   if (!usages) return new Set();
 
   const pins = new Set();
@@ -151,6 +213,41 @@ export function buildNamedConnectorPins(referenceDesigns, boardDesign) {
     }
   }
   return pins;
+}
+
+/**
+ * The FC Label column's row order, for a board with its own
+ * manufacturer design (see findUsagesByName -- never an official
+ * Rotorflight reference design's, whose own JSON key order carries no
+ * intentional display sequence). Reproduces the physical layout the
+ * manufacturer itself supplied -- e.g. the Flydragon Pro's silkscreen,
+ * top to bottom: TAIL, CH3, CH2, CH1, ESC, RPM, RX2, TX2, AUX -- by
+ * walking its usages in the order they were entered and, for each
+ * one's pin(s), finding whichever option key sits there by default.
+ * remap_table.js's own OPTION_KEYS order is used for anything this
+ * design doesn't mention at all (a beyond-capacity M5+/S9+, say).
+ * @param {Object} referenceDesigns - The parsed contents of reference_designs.json (merged with manufacturer_designs.json).
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName.
+ * @param {import("./hardware_parser.js").HardwareMap} defaultHardware - This board's own default hardware map, to resolve a pin back to the option key that defaults to it.
+ * @returns {?string[]} option keys in display order, or null if no manufacturer design matched at all.
+ */
+export function buildDesignOrder(referenceDesigns, boardName, defaultHardware) {
+  const usages = findUsagesByName(referenceDesigns, boardName);
+  if (!usages) return null;
+
+  const pinToOption = {};
+  for (const [option, entry] of Object.entries(defaultHardware)) {
+    if (entry?.pin !== undefined) pinToOption[entry.pin] = option;
+  }
+
+  const order = [];
+  for (const entries of Object.values(usages)) {
+    for (const entry of entries) {
+      const option = pinToOption[normalizePin(entry.pin)];
+      if (option && !order.includes(option)) order.push(option);
+    }
+  }
+  return order;
 }
 
 // The full word for an option key's own CLI shorthand prefix -- used

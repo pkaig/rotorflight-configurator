@@ -22,6 +22,13 @@
   onblur={(e) => onblur?.(e)}
 >
   {#each options as option (option.value)}
-    <option value={option.value}>{option.label}</option>
+    <!-- disabled + hidden lets a caller pass a placeholder entry (e.g.
+         "Set Option") that shows while it's the current value but can't
+         be chosen and isn't listed among the real options. -->
+    <option
+      value={option.value}
+      disabled={option.disabled}
+      hidden={option.hidden}>{option.label}</option
+    >
   {/each}
 </select>

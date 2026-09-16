@@ -41,6 +41,22 @@ export function isOverCapacity(optionKey) {
   return prefix === "M" ? index > MAX_VALID_MOTORS : index > MAX_VALID_SERVOS;
 }
 
+const UART_OR_I2C_RE = /^(RX|TX|SDA|SCL)\d+$/;
+
+// Whether optionKey is a UART (RX/TX) or I2C (SDA/SCL) resource. The
+// board's named connectors -- TLM, SBUS, AUX, ... -- are just labelled
+// UART pins, so they match this too. Such a resource can only ever be
+// mapped to a PWM output (motor/servo/Freq/LED) or back to its own
+// original pin: it must never be moved onto a *different* UART/I2C pin.
+// Swapping two fixed connectors is physically meaningless, and this
+// tool doesn't validate UART/I2C pin capability the way it does
+// timers/DMA, so it would emit a `resource` command for a pin the
+// target may not be able to route that peripheral to at all. See
+// getRowSelectableOptions.
+export function isUartOrI2cResource(optionKey) {
+  return UART_OR_I2C_RE.test(optionKey);
+}
+
 /**
  * @typedef {Object} RemapRow
  * @property {string} option - The resource key, e.g. "M1".
@@ -257,10 +273,11 @@ function isEligibleToAdd(option, configuredOptions) {
  * So these are only offered once their row has actually been removed
  * entirely (visibleOptions no longer includes them).
  *
- * UART/I2C resources, on the other hand, are never offered as a row's
- * Current Option (see getRowSelectableOptions), so there's no separate
- * reclaim path for them at all — once one has a row, regardless of
- * what that row currently holds, it's fully spoken for and excluded
+ * A UART/I2C resource, on the other hand, is only ever offered as its
+ * own row's Current Option (restoring a displaced pad -- see
+ * getRowSelectableOptions), never as another row's, so there's no
+ * separate reclaim path to worry about — once one has a row, regardless
+ * of what that row currently holds, it's fully spoken for and excluded
  * via visibleOptions too, the same as TABLE_OPTION_KEYS options are
  * here.
  * @param {import("./hardware_parser.js").HardwareMap} defaultHardware
@@ -275,23 +292,22 @@ export function getAddableOptions(defaultHardware, visibleOptions) {
 
 /**
  * Returns the options that could be assigned as a row's Current
- * Option: every one of the FC's own fixed options — motors, servos,
- * output-frequency groups, and the LED pin (see TABLE_OPTION_KEYS),
- * plus whichever UART/I2C options namedConnectorKeys names (see
- * reference_design_labels.js's buildNamedConnectorPins -- a caller
- * passes the option keys whose *own* default pin one of those names,
- * e.g. "RX2" when this board's reference design calls RX2's own pin
- * "TLM") — that isn't already claimed by some row, and that passes
- * the FC's filling-order rules (see isEligibleToAdd) so gaps can't be
- * created (e.g. S3 can't be picked unless S1 and S2 are already
- * claimed; a namedConnectorKeys option always passes this trivially,
- * since isEligibleToAdd's rules only ever apply to M/S/Freq prefixes).
- * Every other UART/I2C option stays unreachable here, only ever
- * addable via "+ Add" — offering every possible RX/TX/SDA/SCL slot in
- * every row's own dropdown regardless of whether this board's own
- * reference design ever names it anything would just be clutter, the
- * same reasoning TABLE_OPTION_KEYS's own doc comment gives for leaving
- * UART/I2C out of the table's default row set to begin with.
+ * Option: the FC's own fixed PWM features — motors, servos,
+ * output-frequency groups, and the LED pin (see TABLE_OPTION_KEYS) —
+ * that aren't already claimed by some row and that pass the FC's
+ * filling-order rules (see isEligibleToAdd) so gaps can't be created
+ * (e.g. S3 can't be picked unless S1 and S2 are already claimed).
+ *
+ * The UART/I2C rule (see isUartOrI2cResource): a UART or I2C resource
+ * is NEVER offered as a selectable option in any row -- not another
+ * row's (moving SERIAL_RX 2 onto a servo pad is meaningless, and this
+ * tool doesn't validate UART/I2C pin capability), and not even a
+ * board-named connector's (TLM/SBUS/AUX are just labelled UART pins).
+ * The one exception is a UART/I2C row's own original resource, so a
+ * labelled pad a remap displaced -- "Port C Tx" now holding a servo --
+ * can be restored. Everything else UART/I2C is reachable only via
+ * "+ Add", which brings the pad's row back so a PWM feature can take
+ * it or its own resource can be restored.
  *
  * Deliberately uses claimedOptions rather than the broader
  * "configured" notion getAddableOptions uses: a row's own dropdown
@@ -304,32 +320,32 @@ export function getAddableOptions(defaultHardware, visibleOptions) {
  * Unlike getAddableOptions, this deliberately ignores defaultHardware
  * for TABLE_OPTION_KEYS: a row's Current Option is picked from the
  * FC's fixed set of possible options, not from whatever this specific
- * board's default dump happens to report. namedConnectorKeys is the
- * one exception, since by construction every option key in it already
- * has a default pin (that's what makes it a named connector at all).
+ * board's default dump happens to report.
+ * @param {string} rowOption - the row's own resource key (its labelled
+ *   pad's default), e.g. "S4" or "RX2".
  * @param {string[]} claimedOptions - option keys currently claimed as some row's Current Option.
- * @param {string[]} [namedConnectorKeys] - option keys whose own
- *   default pin this board's reference design documents as a named
- *   connector (e.g. "RX2" for a board that calls it "TLM"). A
- *   TABLE_OPTION_KEYS member listed here too (a servo/motor's own
- *   default pin can itself be a named connector -- "TAIL" is S4's own
- *   pin on some boards) is harmless: deduped below rather than
- *   requiring the caller to filter it out first, since offering the
- *   same option twice in one dropdown is a Svelte each_key_duplicate
- *   crash, not just a cosmetic glitch, and not every future caller can
- *   be trusted to remember that. A beyond-capacity one (see
- *   isOverCapacity) is filtered out below the same way, since a
- *   reference design has no reason to know Rotorflight's own motor/
- *   servo limits when it names a connector.
  * @returns {string[]}
  */
-export function getRowSelectableOptions(claimedOptions, namedConnectorKeys = []) {
-  return [...new Set([...TABLE_OPTION_KEYS, ...namedConnectorKeys])].filter(
-    (option) =>
+export function getRowSelectableOptions(rowOption, claimedOptions) {
+  const pool = isUartOrI2cResource(rowOption)
+    ? [...TABLE_OPTION_KEYS, rowOption]
+    : TABLE_OPTION_KEYS;
+
+  return pool.filter((option) => {
+    // A UART/I2C row always offers its own resource back, so a labelled
+    // pad a remap displaced (e.g. "Port C Tx" now holding a servo) can
+    // be restored even while that resource sits claimed on some other
+    // pin. isEligibleToAdd's filling-order rules only ever apply to
+    // M/S/Freq, so this bypass only matters for the restore-your-own-
+    // UART case.
+    if (option === rowOption && isUartOrI2cResource(rowOption)) return true;
+
+    return (
       !isOverCapacity(option) &&
       !claimedOptions.includes(option) &&
-      isEligibleToAdd(option, claimedOptions),
-  );
+      isEligibleToAdd(option, claimedOptions)
+    );
+  });
 }
 
 /**

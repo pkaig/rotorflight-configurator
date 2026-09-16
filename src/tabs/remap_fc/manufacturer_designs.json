@@ -1,0 +1,62 @@
+{
+  "_file": {
+    "path": "src/tabs/remap_fc/manufacturer_designs.json",
+    "description": "Same shape as reference_designs.json (usage -> pin/function entries, one top-level entry per board), but for a manufacturer's own custom pin layout that has no Rotorflight reference design behind it at all -- kept in its own file, separate from reference_designs.json, because that file is overwritten wholesale by whatever reference_design_source.js fetches live from rotorflight/rotorflight-configurator's own reference_designs.json on GitHub; an entry only ever added locally here would otherwise vanish the moment that fetch succeeds. Each entry is keyed by the board's own reported name (FC.CONFIG.boardName), matched case-insensitively and as a *prefix* (see reference_design_labels.js's findUsages), not a design family -- \"FLYDRAGON_PRO\" here matches a real board reporting \"FLYDRAGON_PRO42688\" (the trailing digits are a specific MCU/revision code, not part of the product-line name). Supplied directly by the manufacturer -- its Rear port pins only (ESC/RPM/TAIL/CH1-3/TX2/RX2/AUX); its Expansion and GPS port pins aren't documented here yet, since no default functionality was given for them."
+  },
+  "FLYDRAGON_PRO": {
+    "TAIL": [
+      {
+        "pin": "PC9",
+        "function": "SDA3 / T3CH4 / T8CH4"
+      }
+    ],
+    "CH3": [
+      {
+        "pin": "PC8",
+        "function": "T3CH3 / T8CH3"
+      }
+    ],
+    "CH2": [
+      {
+        "pin": "PC7",
+        "function": "RX6 / T3CH2 / T8CH2"
+      }
+    ],
+    "CH1": [
+      {
+        "pin": "PC6",
+        "function": "TX6 / T3CH1 / T8CH1"
+      }
+    ],
+    "ESC": [
+      {
+        "pin": "PA0",
+        "function": "TX4 / T2CH1 / T5CH1"
+      }
+    ],
+    "RPM": [
+      {
+        "pin": "PA1",
+        "function": "RX4 / T2CH2 / T5CH2"
+      }
+    ],
+    "RX2": [
+      {
+        "pin": "PA3",
+        "function": "RX2 / T2CH4 / T5CH4 / T9CH2"
+      }
+    ],
+    "TX2": [
+      {
+        "pin": "PA2",
+        "function": "TX2 / T2CH3 / T5CH3 / T9CH1"
+      }
+    ],
+    "AUX": [
+      {
+        "pin": "PB9",
+        "function": "T11CH1"
+      }
+    ]
+  }
+}
