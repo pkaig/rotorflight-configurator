@@ -371,7 +371,17 @@
   // auto-fit for text, so this measures the actual rendered width via
   // getComputedTextLength() and recomputes the scale whenever the
   // name changes.
+  //
+  // Scaling is uniform (x and y together, via the <g> transform), so
+  // filling the same target *width* regardless of length also means a
+  // short name gets taller the more it's scaled up -- a name as short
+  // as "V2_2" filled MODEL_TEXT_TARGET_WIDTH at a large enough scale
+  // to grow tall enough to overlap the brand image above it.
+  // MAX_MODEL_TEXT_SCALE caps how far a short name is ever enlarged
+  // (past this, it just doesn't reach the full target width), keeping
+  // its height bounded instead.
   const MODEL_TEXT_TARGET_WIDTH = BRAND_IMAGE_WIDTH;
+  const MAX_MODEL_TEXT_SCALE = 1.5;
   let modelTextEl = $state(null);
   let boardModelTextScale = $state(1);
   $effect(() => {
@@ -380,7 +390,10 @@
     void boardModelName;
     if (modelTextEl) {
       const width = modelTextEl.getComputedTextLength();
-      boardModelTextScale = width > 0 ? MODEL_TEXT_TARGET_WIDTH / width : 1;
+      boardModelTextScale =
+        width > 0
+          ? Math.min(MODEL_TEXT_TARGET_WIDTH / width, MAX_MODEL_TEXT_SCALE)
+          : 1;
     }
   });
 

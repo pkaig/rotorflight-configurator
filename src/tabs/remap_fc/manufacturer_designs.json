@@ -1,7 +1,7 @@
 {
   "_file": {
     "path": "src/tabs/remap_fc/manufacturer_designs.json",
-    "description": "Same shape as reference_designs.json (usage -> pin/function entries, one top-level entry per board), but for a manufacturer's own custom pin layout that has no Rotorflight reference design behind it at all -- kept in its own file, separate from reference_designs.json, because that file is overwritten wholesale by whatever reference_design_source.js fetches live from rotorflight/rotorflight-configurator's own reference_designs.json on GitHub; an entry only ever added locally here would otherwise vanish the moment that fetch succeeds. Each entry is keyed by the board's own reported name (FC.CONFIG.boardName), matched case-insensitively and as a *prefix* (see reference_design_labels.js's findUsages), not a design family -- \"FLYDRAGON_PRO\" here matches a real board reporting \"FLYDRAGON_PRO42688\" (the trailing digits are a specific MCU/revision code, not part of the product-line name). Supplied directly by the manufacturer -- its Rear port pins only (ESC/RPM/TAIL/CH1-3/TX2/RX2/AUX); its Expansion and GPS port pins aren't documented here yet, since no default functionality was given for them."
+    "description": "Same shape as reference_designs.json (usage -> pin/function entries, one top-level entry per board), but for a manufacturer's own custom pin layout that has no Rotorflight reference design behind it at all -- kept in its own file, separate from reference_designs.json, because that file is overwritten wholesale by whatever reference_design_source.js fetches live from rotorflight/rotorflight-configurator's own reference_designs.json on GitHub; an entry only ever added locally here would otherwise vanish the moment that fetch succeeds. Each entry is keyed by the board's own reported name (FC.CONFIG.boardName), matched case-insensitively and as a *prefix* (see reference_design_labels.js's findUsages), not a design family -- \"FLYDRAGON_PRO\" here matches a real board reporting \"FLYDRAGON_PRO42688\" (the trailing digits are a specific MCU/revision code, not part of the product-line name). FLYDRAGON_PRO was supplied directly by the manufacturer -- its Rear port pins only (ESC/RPM/TAIL/CH1-3/TX2/RX2/AUX); its Expansion and GPS port pins aren't documented here yet, since no default functionality was given for them. AUX (B9) is unlike the others: it has no default resource assignment at all (the manufacturer confirms it's unconnected by default, and physically shares its pin with a secondary gyro interrupt) rather than defaulting to some UART/timer function the way ESC/RPM/TAIL/CH1-3/TX2/RX2 do -- it's still meant to be usable for remapping (an extra servo, say), but whether this tool can actually offer it depends on whether the connected board's own default hardware dump reports *any* resource at all on B9 (see RemapFc.svelte's isPermanentOption/getAddableOptions, which both key off that). FLYDRAGON_V2_2 is a separate, later board (its own boardName, matched the same way -- its reported boardDesign, \"RTFL\", is a generic Rotorflight placeholder rather than a real shared family, so name matching is what actually resolves it) built from the manufacturer's own target dump (resource/timer/dma lines) plus its wiring diagram: CH1-4 are the swashplate (CH1-3) and tail (CH4) servo outputs, ESC the main motor, RPM-E the ESC's own built-in RPM/telemetry return, RPM-S a separate standalone RPM sensor input (either can be used alone as FREQ1, or together as FREQ1+FREQ2), and SBUS/F.Port share UART2 (RX2/TX2) the same way a receiver's SBUS signal and its telemetry return normally do. Its other UART/I2C/expansion pins aren't documented here either, for the same reason as FLYDRAGON_PRO's. FLYWING_HELI405 (boardDesign \"RTFL\", also matched by name) is built the same way, from the manufacturer's own target dump plus an annotated board photo: SBUS/S1/S2/S3/TAIL/ESC/RPM are the main connector's own silkscreen labels (SBUS = SERIAL_RX 2 -- the receiver signal; S1-S3 the swashplate servos; TAIL the tail servo; ESC the main motor; RPM the governor's RPM sensor input). Its two other connectors -- a 4-pin JST for a Spektrum DSM satellite receiver (SERIAL_RX 6, receive-only) and a separate JST breaking out SERIAL_TX 2 (the other half of the UART2 pair SBUS's SERIAL_RX 2 belongs to) -- are deliberately left undocumented here: a receive-only connector named \"DSM\" reads as if it carries both directions the same way a two-sided connector name normally would, which is exactly backwards for a pin that can't. They're still reachable via \"+ Add\", just without a named-connector row of their own."
   },
   "FLYDRAGON_PRO": {
     "TAIL": [
@@ -56,6 +56,106 @@
       {
         "pin": "PB9",
         "function": "T11CH1"
+      }
+    ]
+  },
+  "FLYDRAGON_V2_2": {
+    "CH4": [
+      {
+        "pin": "PC9",
+        "function": "T8CH4"
+      }
+    ],
+    "CH3": [
+      {
+        "pin": "PC8",
+        "function": "T3CH3"
+      }
+    ],
+    "CH2": [
+      {
+        "pin": "PC7",
+        "function": "T3CH2"
+      }
+    ],
+    "CH1": [
+      {
+        "pin": "PC6",
+        "function": "T3CH1"
+      }
+    ],
+    "ESC": [
+      {
+        "pin": "PA0",
+        "function": "T5CH1"
+      }
+    ],
+    "RPM-E": [
+      {
+        "pin": "PA1",
+        "function": "T2CH2"
+      }
+    ],
+    "SBUS": [
+      {
+        "pin": "PA3",
+        "function": "RX2"
+      }
+    ],
+    "F.Port": [
+      {
+        "pin": "PA2",
+        "function": "TX2"
+      }
+    ],
+    "RPM-S": [
+      {
+        "pin": "PA15",
+        "function": "T2CH1"
+      }
+    ]
+  },
+  "FLYWING_HELI405": {
+    "SBUS": [
+      {
+        "pin": "PA3",
+        "function": "RX2"
+      }
+    ],
+    "S1": [
+      {
+        "pin": "PB6",
+        "function": "T4CH1"
+      }
+    ],
+    "S2": [
+      {
+        "pin": "PB10",
+        "function": "T2CH3"
+      }
+    ],
+    "S3": [
+      {
+        "pin": "PB11",
+        "function": "T2CH4"
+      }
+    ],
+    "TAIL": [
+      {
+        "pin": "PC8",
+        "function": "T8CH3"
+      }
+    ],
+    "ESC": [
+      {
+        "pin": "PB1",
+        "function": "T3CH4"
+      }
+    ],
+    "RPM": [
+      {
+        "pin": "PB8",
+        "function": "T10CH1"
       }
     ]
   }
