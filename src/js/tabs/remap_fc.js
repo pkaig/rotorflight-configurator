@@ -14,11 +14,13 @@ import { GUI } from "@/js/gui.js";
 import HeadlessCliEngine from "@/js/headless_cli_engine.js";
 import { i18n } from "@/js/localization.js";
 import { parseHardwareDump, parseMcuType } from "@/js/remap_fc/hardware_parser.js";
+import { isGenericBoardDesign } from "@/js/remap_fc/remap_table.js";
 import { fetchRotorflightTargetDefaults } from "@/js/remap_fc/rotorflight_target_source.js";
 import {
   parseReservedDmaStreams,
   parseReservedTimers,
 } from "@/js/remap_fc/timer_dma_lookup.js";
+import { withTimeout } from "@/js/remap_fc/with_timeout.js";
 import RemapFc from "@/tabs/remap_fc/RemapFc.svelte";
 
 import { TABS } from "./tabs.js";
@@ -51,20 +53,6 @@ const REBOOT_TIMEOUT_MS = 8000;
 // left unbounded, which could hang "Read FC"/"Load Changes" forever
 // with the UI stuck on its loading spinner and no error ever shown.
 const CLI_ENTRY_TIMEOUT_MS = 10000;
-
-// Races `promise` against a timeout, rejecting with an error naming
-// `label` if it fires first. Used to bound the two bulk-data steps in
-// #doRunSequence -- see BULK_TRANSFER_TIMEOUT_MS.
-function withTimeout(promise, ms, label) {
-  let timeoutId;
-  const timeout = new Promise((_resolve, reject) => {
-    timeoutId = setTimeout(
-      () => reject(new Error(`Timed out waiting for ${label}`)),
-      ms,
-    );
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
-}
 
 // `dump`/`diff` output ends with a bare `save` line, meant for
 // pasting straight onto a fresh board -- exactly what this restore
@@ -405,24 +393,23 @@ class RemapFcTab {
       this.#mcuType = parseMcuType(currentDump);
 
       // A board with no Rotorflight-specific build of its own (see
-      // RemapFc.svelte's isGenericBoard for the same check) only
-      // ever reports resources up to whatever Rotorflight's own
-      // runtime was compiled to support -- kick off a lookup of the
-      // richer default set its own shared Betaflight target actually
-      // defines (see rotorflight_target_source.js), in parallel with
-      // the CLI restore sequence below since it's an unrelated
-      // network fetch, not something to make the user wait on twice.
-      // Purely for display -- this.#defaultHardware itself, used
-      // below to compute what actually gets sent back to the FC,
-      // stays exactly what was really read regardless of how this
-      // resolves.
-      const targetDefaultsPromise =
-        !FC.CONFIG.boardDesign || FC.CONFIG.boardDesign === "BTFL"
-          ? fetchRotorflightTargetDefaults(
-              FC.CONFIG.manufacturerId,
-              FC.CONFIG.boardName,
-            )
-          : Promise.resolve(null);
+      // isGenericBoardDesign, also used by RemapFc.svelte's
+      // isGenericBoard for the same check) only ever reports resources
+      // up to whatever Rotorflight's own runtime was compiled to
+      // support -- kick off a lookup of the richer default set its own
+      // shared Betaflight target actually defines (see
+      // rotorflight_target_source.js), in parallel with the CLI
+      // restore sequence below since it's an unrelated network fetch,
+      // not something to make the user wait on twice. Purely for
+      // display -- this.#defaultHardware itself, used below to compute
+      // what actually gets sent back to the FC, stays exactly what was
+      // really read regardless of how this resolves.
+      const targetDefaultsPromise = isGenericBoardDesign(FC.CONFIG.boardDesign)
+        ? fetchRotorflightTargetDefaults(
+            FC.CONFIG.manufacturerId,
+            FC.CONFIG.boardName,
+          )
+        : Promise.resolve(null);
 
       // `defaults nosave` resets the FC's *entire* live config in RAM,
       // not just resources/timer/DMA -- PID gains, rates, filters, the

@@ -52,6 +52,11 @@ function findUsagesByFamily(referenceDesigns, boardDesign) {
 // just upstream MCU-Pin-Allocation-table extraction order, with no
 // intentional display sequence to preserve, and reordering by it would
 // make those boards worse, not better.
+/**
+ * @param {Object} referenceDesigns - The parsed contents of reference_designs.json (merged with manufacturer_designs.json).
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName.
+ * @returns {?Object} The matched entry's usages object, or null if no manufacturer design's key is a case-insensitive prefix of boardName.
+ */
 export function findUsagesByName(referenceDesigns, boardName) {
   if (!referenceDesigns || !boardName) return null;
   const lowerName = boardName.toLowerCase();

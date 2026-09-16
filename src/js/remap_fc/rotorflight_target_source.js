@@ -33,24 +33,12 @@
 import * as github from "@/js/GitHubApi.js";
 
 import { parseHardwareDump } from "./hardware_parser.js";
+import { withTimeout } from "./with_timeout.js";
 
 const REPO = "rotorflight/rotorflight-targets";
 const BRANCH = "master";
 const CONFIGS_PATH = "configs";
 const FETCH_TIMEOUT_MS = 4000;
-
-// Races `promise` against a timeout, clearing the timer either way --
-// left running, it would still fire after `promise` already won the
-// race, rejecting a promise nothing is left to handle (an unhandled
-// rejection a few seconds into every successful call, not just a
-// slow/failed one).
-function withTimeout(promise, ms) {
-  let timeoutId;
-  const timeout = new Promise((_resolve, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("timed out")), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
-}
 
 async function fetchRawConfig(url) {
   const res = await fetch(url, { cache: "no-cache" });
@@ -58,20 +46,7 @@ async function fetchRawConfig(url) {
   return await res.text();
 }
 
-/**
- * Finds and parses the unified target config matching the given
- * manufacturer/board pair, if any. Never throws -- any failure (no
- * matching file, the repository listing or the file itself can't be
- * fetched in time, or the matched file has no usable resources in it)
- * just resolves to null, so a caller can always fall back to the FC's
- * own reported defaults without special-casing errors itself.
- * @param {?string} manufacturerId - e.g. "MTKS", from FC.CONFIG.manufacturerId.
- * @param {?string} boardName - e.g. "MATEKF405TE", from FC.CONFIG.boardName.
- * @returns {Promise<?import("./hardware_parser.js").HardwareMap>}
- */
-export async function fetchRotorflightTargetDefaults(manufacturerId, boardName) {
-  if (!manufacturerId || !boardName) return null;
-
+async function fetchRotorflightTargetDefaultsUncached(manufacturerId, boardName) {
   // Config filenames follow "<manufacturer>-<board>.config" -- the
   // same convention firmware_flasher/util.js's parseUnifiedTargets
   // splits back apart via its own TARGET_REGEXP, just assembled
@@ -82,6 +57,7 @@ export async function fetchRotorflightTargetDefaults(manufacturerId, boardName) 
     const entries = await withTimeout(
       github.getContents(REPO, BRANCH, CONFIGS_PATH),
       FETCH_TIMEOUT_MS,
+      "the rotorflight-targets config listing",
     );
     const match = entries.find(
       (entry) => entry.name.toUpperCase() === wantedName,
@@ -94,6 +70,7 @@ export async function fetchRotorflightTargetDefaults(manufacturerId, boardName) 
     const configText = await withTimeout(
       fetchRawConfig(match.download_url),
       FETCH_TIMEOUT_MS,
+      "the rotorflight-targets config file",
     );
     const hardware = parseHardwareDump(configText);
     if (Object.keys(hardware).length === 0) {
@@ -109,4 +86,47 @@ export async function fetchRotorflightTargetDefaults(manufacturerId, boardName) 
     );
     return null;
   }
+}
+
+// Repeated "Read FC"/"Load Changes" runs against the same connected
+// board hit this every time, each one re-fetching the whole
+// rotorflight-targets config listing plus the matched file -- wasted
+// network round-trips for data that isn't going to change mid-session.
+// Cached by manufacturer+board key, keyed on the in-flight promise
+// itself so two overlapping calls for the same board (e.g. a fast
+// double-click) share one fetch rather than racing two. Only a
+// successful lookup stays cached: a failure (board genuinely
+// undocumented, or just a transient network/timeout blip) is evicted
+// once it settles, so it's retried fresh next time rather than
+// permanently giving up on a board for the rest of the session over
+// what might have been a one-off failure.
+const targetDefaultsCache = new Map();
+
+/**
+ * Finds and parses the unified target config matching the given
+ * manufacturer/board pair, if any. Never throws -- any failure (no
+ * matching file, the repository listing or the file itself can't be
+ * fetched in time, or the matched file has no usable resources in it)
+ * just resolves to null, so a caller can always fall back to the FC's
+ * own reported defaults without special-casing errors itself.
+ * @param {?string} manufacturerId - e.g. "MTKS", from FC.CONFIG.manufacturerId.
+ * @param {?string} boardName - e.g. "MATEKF405TE", from FC.CONFIG.boardName.
+ * @returns {Promise<?import("./hardware_parser.js").HardwareMap>}
+ */
+export function fetchRotorflightTargetDefaults(manufacturerId, boardName) {
+  if (!manufacturerId || !boardName) return Promise.resolve(null);
+
+  const cacheKey = `${manufacturerId}-${boardName}`.toUpperCase();
+  const cached = targetDefaultsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const promise = fetchRotorflightTargetDefaultsUncached(
+    manufacturerId,
+    boardName,
+  ).then((result) => {
+    if (!result) targetDefaultsCache.delete(cacheKey);
+    return result;
+  });
+  targetDefaultsCache.set(cacheKey, promise);
+  return promise;
 }

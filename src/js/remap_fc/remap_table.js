@@ -25,14 +25,18 @@ export const MAX_VALID_SERVOS = 8;
 
 const MOTOR_OR_SERVO_INDEX_RE = /^(M|S)(\d+)$/;
 
-// Whether optionKey names a motor/servo index beyond what Rotorflight
-// can actually use. Used by getRowSelectableOptions to keep such a key
-// from ever being offered as a value, regardless of source -- a
-// namedConnectorKeys caller passes in whatever a reference design
-// documents, which isn't guaranteed to respect Rotorflight's own
-// capacity. Deliberately not applied to row visibility (setHardware)
-// or "+ Add" (getAddableOptions), which still need the row itself to
-// exist so its pin can be reassigned to something valid.
+/**
+ * Whether optionKey names a motor/servo index beyond what Rotorflight
+ * can actually use. Used by getRowSelectableOptions to keep such a key
+ * from ever being offered as a value, regardless of source -- a
+ * namedConnectorKeys caller passes in whatever a reference design
+ * documents, which isn't guaranteed to respect Rotorflight's own
+ * capacity. Deliberately not applied to row visibility (setHardware)
+ * or "+ Add" (getAddableOptions), which still need the row itself to
+ * exist so its pin can be reassigned to something valid.
+ * @param {string} optionKey - e.g. "M1", "S9".
+ * @returns {boolean}
+ */
 export function isOverCapacity(optionKey) {
   const match = optionKey.match(MOTOR_OR_SERVO_INDEX_RE);
   if (!match) return false;
@@ -41,18 +45,37 @@ export function isOverCapacity(optionKey) {
   return prefix === "M" ? index > MAX_VALID_MOTORS : index > MAX_VALID_SERVOS;
 }
 
+/**
+ * Whether boardDesign means "no real Rotorflight-specific board design"
+ * -- either genuinely absent, or the generic "BTFL" placeholder
+ * Rotorflight uses for an unrecognised Betaflight target. Shared by
+ * RemapFc.svelte (to decide whether to show a bare, uncased PCB board
+ * diagram instead of a real cased one) and remap_fc.js (to decide
+ * whether to fetch richer Betaflight-target defaults from
+ * rotorflight_target_source.js) -- both need the identical check.
+ * @param {?string} boardDesign - e.g. "F7C5", "BTFL", or null/undefined, from FC.CONFIG.boardDesign.
+ * @returns {boolean}
+ */
+export function isGenericBoardDesign(boardDesign) {
+  return !boardDesign || boardDesign === "BTFL";
+}
+
 const UART_OR_I2C_RE = /^(RX|TX|SDA|SCL)\d+$/;
 
-// Whether optionKey is a UART (RX/TX) or I2C (SDA/SCL) resource. The
-// board's named connectors -- TLM, SBUS, AUX, ... -- are just labelled
-// UART pins, so they match this too. Such a resource can only ever be
-// mapped to a PWM output (motor/servo/Freq/LED) or back to its own
-// original pin: it must never be moved onto a *different* UART/I2C pin.
-// Swapping two fixed connectors is physically meaningless, and this
-// tool doesn't validate UART/I2C pin capability the way it does
-// timers/DMA, so it would emit a `resource` command for a pin the
-// target may not be able to route that peripheral to at all. See
-// getRowSelectableOptions.
+/**
+ * Whether optionKey is a UART (RX/TX) or I2C (SDA/SCL) resource. The
+ * board's named connectors -- TLM, SBUS, AUX, ... -- are just labelled
+ * UART pins, so they match this too. Such a resource can only ever be
+ * mapped to a PWM output (motor/servo/Freq/LED) or back to its own
+ * original pin: it must never be moved onto a *different* UART/I2C pin.
+ * Swapping two fixed connectors is physically meaningless, and this
+ * tool doesn't validate UART/I2C pin capability the way it does
+ * timers/DMA, so it would emit a `resource` command for a pin the
+ * target may not be able to route that peripheral to at all. See
+ * getRowSelectableOptions.
+ * @param {string} optionKey - e.g. "RX2", "SDA1".
+ * @returns {boolean}
+ */
 export function isUartOrI2cResource(optionKey) {
   return UART_OR_I2C_RE.test(optionKey);
 }

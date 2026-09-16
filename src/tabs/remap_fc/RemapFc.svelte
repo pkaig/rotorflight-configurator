@@ -16,6 +16,11 @@
   import { FC } from "@/js/fc.svelte.js";
   import { getTabHelpURL } from "@/js/help";
   import { i18n } from "@/js/i18n.js";
+  import {
+    MANUFACTURER_BOARD_COLORS,
+    MANUFACTURER_BOARD_NAMES,
+    MANUFACTURER_BRAND_IMAGES,
+  } from "@/js/remap_fc/manufacturer_branding.js";
   import { findPinConflictSuggestions } from "@/js/remap_fc/pin_conflict_suggestions.js";
   import {
     buildDesignOrder,
@@ -32,6 +37,7 @@
     buildRowsForOptions,
     getAddableOptions,
     getRowSelectableOptions,
+    isGenericBoardDesign,
     isUartOrI2cResource,
   } from "@/js/remap_fc/remap_table.js";
   import { isMcuSupported } from "@/js/remap_fc/timer_dma_lookup.js";
@@ -324,15 +330,8 @@
   // manufacturers.js's own `name` (the parent RC-radio manufacturer,
   // e.g. "FrSky"), this is what's actually silkscreened on the board
   // itself (e.g. "Vantac"). Falls back to FC.CONFIG's own reported
-  // manufacturerId when a board has no dedicated diagram.
-  const MANUFACTURER_BOARD_NAMES = {
-    RDMS: "RadioMaster",
-    FRSK: "Vantac",
-    GSKY: "Goosky",
-    FDRC: "FlyDragon",
-    FWRF: "FlyWing",
-    MTKS: "Matek",
-  };
+  // manufacturerId when a board has no dedicated diagram. See
+  // manufacturer_branding.js for MANUFACTURER_BOARD_NAMES itself.
   let boardBrandName = $derived(
     MANUFACTURER_BOARD_NAMES[FC.CONFIG.manufacturerId] ??
       FC.CONFIG.manufacturerId,
@@ -344,15 +343,8 @@
   // with its own aspect ratio setting the height, so every image can
   // have a different natural shape without needing per-manufacturer
   // layout code. A manufacturer with no entry here just shows the
-  // plain generic body.
-  const MANUFACTURER_BRAND_IMAGES = {
-    RDMS: { file: "RADIOMASTER_BRAND.svg", aspect: 282 / 75 },
-    FRSK: { file: "VANTAC_BRAND.svg", aspect: 1377 / 596 },
-    GSKY: { file: "GOOSKY_BRAND.svg", aspect: 1427 / 135 },
-    FDRC: { file: "FLYDRAGON_BRAND.svg", aspect: 500 / 360 },
-    FWRF: { file: "FLYWING_BRAND.svg", aspect: 613 / 171 },
-    MTKS: { file: "MATEKSYS_BRAND.svg", aspect: 300 / 70 },
-  };
+  // plain generic body. See manufacturer_branding.js for
+  // MANUFACTURER_BRAND_IMAGES itself.
   const BRAND_IMAGE_X = 590;
   const BRAND_IMAGE_Y = 109; // 55 + 10% of the board's own 540-tall height
   const BRAND_IMAGE_WIDTH = 400;
@@ -412,21 +404,15 @@
   // "BTFL" placeholder Rotorflight uses for an unrecognised
   // Betaflight target, isn't a real cased board. It's shown as a
   // bare, uncased PCB (see GENERIC.svg) instead of the cased shape
-  // below -- the same condition remap_fc.js already uses to decide
-  // whether to fetch richer Betaflight-target defaults.
-  let isGenericBoard = $derived(
-    !FC.CONFIG.boardDesign || FC.CONFIG.boardDesign === "BTFL",
-  );
+  // below -- see isGenericBoardDesign for the identical check
+  // remap_fc.js uses to decide whether to fetch richer
+  // Betaflight-target defaults.
+  let isGenericBoard = $derived(isGenericBoardDesign(FC.CONFIG.boardDesign));
 
   // Body/bezel colours for the board diagram -- grey is the generic
   // fallback; manufacturers with a real reference diagram get their
-  // own real case colours instead.
-  const MANUFACTURER_BOARD_COLORS = {
-    RDMS: { bezel: "#c9d0d6", body: "#2f6f96" },
-    FDRC: { bezel: "#c9d0d6", body: "#a13d3d" },
-    GSKY: { bezel: "#c9d0d6", body: "#6f4a91" },
-    FRSK: { bezel: "#2b2d31", body: "#101113" },
-  };
+  // own real case colours instead. See manufacturer_branding.js for
+  // MANUFACTURER_BOARD_COLORS itself.
   let boardBezelColor = $derived(
     MANUFACTURER_BOARD_COLORS[FC.CONFIG.manufacturerId]?.bezel ?? "#9ba3ac",
   );
@@ -504,6 +490,19 @@
     const name = displayName(option);
     const match = name.match(GENERIC_SERVO_MOTOR_RE);
     return match ? `${match[1][0]}${match[2]}` : name;
+  }
+
+  // The FC Label *column*'s own text -- fcLabel with a generic UART/I2C
+  // bus name ("Serial RX 1", "I2C SDA 3") further shortened to just its
+  // bus/instance half ("RX 1", "SDA 3"): the column is too narrow for
+  // the full name to ever fit without truncating (see pin-row-text's
+  // own CSS). The "+ Add" menu and the pin card's own title (see
+  // fcLabel's other callers) keep the full name -- they have the room,
+  // and it reads better there without the identical column-width
+  // constraint forcing it shorter.
+  const BUS_PREFIX_RE = /^(?:Serial|I2C) /;
+  function pinColumnLabel(option) {
+    return fcLabel(option).replace(BUS_PREFIX_RE, "");
   }
 
   // The bus-and-instance name for a UART/I2C resource key -- "UART RX 1",
@@ -1301,7 +1300,7 @@
                   bind:clientHeight={measuredRowHeight}
                 >
                   <img class="pin-icon" src="/images/remap_fc/PIN.svg" alt="" />
-                  <span class="pin-row-text">{fcLabel(row.option)}</span>
+                  <span class="pin-row-text">{pinColumnLabel(row.option)}</span>
                 </button>
               {/each}
               {#if hasRealAddableOptions}
@@ -1880,8 +1879,8 @@
   }
 
   /* No CSS sizing here -- width/height come from diagramWidth/
-     diagramHeight (see <script>), since this app's runtime doesn't
-     support CSS aspect-ratio. */
+     diagramHeight (see the component script above), since this app's
+     runtime doesn't support CSS aspect-ratio. */
   .board-diagram-wrap {
     position: relative;
   }
