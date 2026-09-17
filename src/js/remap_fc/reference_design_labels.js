@@ -221,23 +221,30 @@ export function buildNamedConnectorPins(referenceDesigns, boardDesign, boardName
 }
 
 /**
- * The FC Label column's row order, for a board with its own
- * manufacturer design (see findUsagesByName -- never an official
- * Rotorflight reference design's, whose own JSON key order carries no
- * intentional display sequence). Reproduces the physical layout the
- * manufacturer itself supplied -- e.g. the Flydragon Pro's silkscreen,
- * top to bottom: TAIL, CH3, CH2, CH1, ESC, RPM, RX2, TX2, AUX -- by
- * walking its usages in the order they were entered and, for each
- * one's pin(s), finding whichever option key sits there by default.
- * remap_table.js's own OPTION_KEYS order is used for anything this
- * design doesn't mention at all (a beyond-capacity M5+/S9+, say).
+ * The FC Label column's row order. Prefers a board's own manufacturer
+ * design (see findUsagesByName) when one exists -- e.g. the Flydragon
+ * Pro's silkscreen, top to bottom: TAIL, CH3, CH2, CH1, ESC, RPM, RX2,
+ * TX2, AUX -- since that's a deliberately supplied physical layout.
+ * Falls back to the matching official Rotorflight reference design's
+ * own order (findUsagesByFamily) when a board follows one but has no
+ * manufacturer entry of its own: reference_designs.json's own JSON key
+ * order is just upstream MCU-Pin-Allocation-table extraction order
+ * rather than a deliberately chosen display sequence, but it's still
+ * that real board's actual pin layout, and a better default than
+ * falling straight through to remap_table.js's own generic OPTION_KEYS
+ * order -- used only once neither a manufacturer design nor a
+ * reference design family matches at all, or for an option beyond
+ * what either one mentions (a beyond-capacity M5+/S9+, say).
  * @param {Object} referenceDesigns - The parsed contents of reference_designs.json (merged with manufacturer_designs.json).
+ * @param {?string} boardDesign - e.g. "F7B5", from FC.CONFIG.boardDesign.
  * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName.
  * @param {import("./hardware_parser.js").HardwareMap} defaultHardware - This board's own default hardware map, to resolve a pin back to the option key that defaults to it.
- * @returns {?string[]} option keys in display order, or null if no manufacturer design matched at all.
+ * @returns {?string[]} option keys in display order, or null if neither a manufacturer design nor a reference design family matched at all.
  */
-export function buildDesignOrder(referenceDesigns, boardName, defaultHardware) {
-  const usages = findUsagesByName(referenceDesigns, boardName);
+export function buildDesignOrder(referenceDesigns, boardDesign, boardName, defaultHardware) {
+  const usages =
+    findUsagesByName(referenceDesigns, boardName) ??
+    findUsagesByFamily(referenceDesigns, boardDesign);
   if (!usages) return null;
 
   const pinToOption = {};

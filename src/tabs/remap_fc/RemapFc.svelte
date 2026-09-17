@@ -29,7 +29,10 @@
     buildReservedPins,
     expandOptionName,
   } from "@/js/remap_fc/reference_design_labels.js";
-  import { loadReferenceDesigns } from "@/js/remap_fc/reference_design_source.js";
+  import {
+    loadManufacturerDesigns,
+    loadReferenceDesigns,
+  } from "@/js/remap_fc/reference_design_source.js";
   import {
     OPTION_KEYS,
     TABLE_OPTION_KEYS,
@@ -43,26 +46,30 @@
   import { isMcuSupported } from "@/js/remap_fc/timer_dma_lookup.js";
   import { reconcileTimersAndDma } from "@/js/remap_fc/timer_dma_reconciler.js";
   import mcuAllData from "@/tabs/remap_fc/MCU-all.json";
-  import manufacturerDesigns from "@/tabs/remap_fc/manufacturer_designs.json";
+  import manufacturerDesignsLocal from "@/tabs/remap_fc/manufacturer_designs.json";
   import referenceDesignsLocal from "@/tabs/remap_fc/reference_designs.json";
 
-  // referenceDesignsLocal starts as the bundled copy, then replaces
-  // itself with the latest version fetched from GitHub (see
-  // reference_design_source.js), so a newly documented official
-  // Rotorflight reference design doesn't need a new release. That
-  // fetch only ever returns *official* designs (it's literally this
-  // same file's own content on GitHub), so manufacturerDesigns -- a
-  // manufacturer's own custom pin layout with no reference design
-  // behind it, e.g. "FLYDRAGON_PRO" -- is merged in separately on top,
-  // both here and after the fetch resolves, rather than living inside
-  // reference_designs.json itself where a successful fetch would wipe
-  // it back out.
-  let referenceDesigns = $state({
-    ...referenceDesignsLocal,
-    ...manufacturerDesigns,
+  // Each of referenceDesignsData/manufacturerDesignsData starts as its
+  // own bundled copy, then independently replaces itself with the
+  // latest version fetched from GitHub (see reference_design_source.js)
+  // once that resolves, so a newly documented board -- official or
+  // manufacturer-supplied -- doesn't need a new configurator release
+  // before it shows up here. referenceDesigns itself just re-merges
+  // whichever combination of the two is current, manufacturer data
+  // spread last so a (currently never-occurring, but never assumed
+  // impossible) key collision between the two files favours the
+  // manufacturer's own entry.
+  let referenceDesignsData = $state(referenceDesignsLocal);
+  let manufacturerDesignsData = $state(manufacturerDesignsLocal);
+  let referenceDesigns = $derived({
+    ...referenceDesignsData,
+    ...manufacturerDesignsData,
   });
   loadReferenceDesigns(referenceDesignsLocal).then((data) => {
-    referenceDesigns = { ...data, ...manufacturerDesigns };
+    referenceDesignsData = data;
+  });
+  loadManufacturerDesigns(manufacturerDesignsLocal).then((data) => {
+    manufacturerDesignsData = data;
   });
 
   // Sentinel dropdown value meaning "nothing assigned to this pin" —
@@ -179,14 +186,19 @@
         : $i18n.t("remapFcRunning"),
   );
 
-  // This board's own manufacturer-design row order (see
-  // buildDesignOrder), if it has one -- reproducing its actual
-  // physical pin layout, e.g. the Flydragon Pro's silkscreen order
-  // top to bottom. null for any board without one (including every
-  // official Rotorflight reference design), which just means "no
+  // This board's own row order (see buildDesignOrder) -- its
+  // manufacturer design's physical pin layout if it has one (e.g. the
+  // Flydragon Pro's silkscreen order top to bottom), else its matching
+  // official Rotorflight reference design's own order if it follows
+  // one. null for a board matching neither, which just means "no
   // override" below.
   let designOrder = $derived(
-    buildDesignOrder(referenceDesigns, FC.CONFIG.boardName, defaultHardware),
+    buildDesignOrder(
+      referenceDesigns,
+      FC.CONFIG.boardDesign,
+      FC.CONFIG.boardName,
+      defaultHardware,
+    ),
   );
 
   // Keep the visible rows in a fixed order, regardless of the order
