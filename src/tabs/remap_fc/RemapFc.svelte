@@ -24,6 +24,7 @@
   import { findPinConflictSuggestions } from "@/js/remap_fc/pin_conflict_suggestions.js";
   import {
     buildDesignOrder,
+    buildManufacturerNamedConnectorPins,
     buildNamedConnectorPins,
     buildReferenceLabels,
     buildReservedPins,
@@ -123,7 +124,7 @@
   // "+ Add". Picking "None" removes the row again.
   /** @type {string[]} */
   let visibleOptions = $state([]);
-  // Options whose row shows the "Set Option" placeholder instead of a
+  // Options whose row shows the "Default" placeholder instead of a
   // resolved value.
   /** @type {string[]} */
   let unsetOptions = $state([]);
@@ -463,6 +464,14 @@
       FC.CONFIG.boardDesign,
       FC.CONFIG.boardName,
     ),
+  );
+
+  // The subset of namedConnectorPins a manufacturer design specifically
+  // documents (never an official reference design family) -- see
+  // buildManufacturerNamedConnectorPins and setHardware's own comment
+  // for why only these get the own-defaults fallback.
+  let manufacturerNamedConnectorPins = $derived(
+    buildManufacturerNamedConnectorPins(referenceDesigns, FC.CONFIG.boardName),
   );
 
   // Whether option's row is a permanent fixture of the table: a fixed
@@ -845,9 +854,51 @@
     reservedDma = new Set(),
     reservedTmr = new Set(),
   ) {
+    // A manufacturer design's own named connector can be physically
+    // wired to a pin this board's compiled defaults leave completely
+    // unclaimed -- Flydragon Pro's AUX (B09) is a real example: the
+    // manufacturer confirms it's unconnected by default (it shares its
+    // pin with a secondary gyro interrupt), but it's still meant to be
+    // usable for remapping. Without a fallback such a pin is invisible
+    // everywhere: no option in defaultHw has that pin, so neither the
+    // visibleOptions loop below nor getAddableOptions (which requires
+    // `option in defaultHardware`) ever surfaces it.
+    //
+    // This never guesses *what* such a pin should default to -- a bare
+    // timer channel like AUX's is just as plausibly an extra servo as
+    // it is a frequency input (see FLYDRAGON_V2_2's RPM-S, exactly that
+    // same ambiguity from otherwise-identical manufacturer data), and
+    // manufacturer_designs.json doesn't say which. So this only ever
+    // anchors the row to *some* currently-unclaimed TABLE_OPTION_KEYS
+    // identity -- purely an internal handle so the row can exist and
+    // its pin can be reassigned through the normal machinery (the
+    // anchor itself is never shown -- fcLabel resolves the row's label
+    // from its pin, not its anchor key, and the row starts in
+    // unsetOptions below so its Current Option area prompts for a pick
+    // rather than showing the anchor as if it were a real default) --
+    // and only for a manufacturer design's own connectors, never an
+    // official reference design's (see
+    // buildManufacturerNamedConnectorPins).
+    const augmentedDefaultHw = { ...defaultHw };
+    const fallbackAnchors = [];
+    for (const pin of manufacturerNamedConnectorPins) {
+      const alreadyClaimed = Object.values(augmentedDefaultHw).some(
+        (entry) => entry.pin === pin,
+      );
+      if (alreadyClaimed) continue;
+
+      const anchor = TABLE_OPTION_KEYS.find(
+        (option) => !(option in augmentedDefaultHw),
+      );
+      if (!anchor) continue; // no free slot left to anchor this pin to
+
+      augmentedDefaultHw[anchor] = { pin };
+      fallbackAnchors.push(anchor);
+    }
+
     workingCurrent = { ...current };
     originalCurrent = { ...current };
-    defaultHardware = { ...defaultHw };
+    defaultHardware = augmentedDefaultHw;
     mcuType = mcu;
     reservedDmaStreams = reservedDma;
     reservedTimers = reservedTmr;
@@ -857,7 +908,7 @@
       Object.keys(current).find((key) => current[key].pin === pin);
 
     visibleOptions = OPTION_KEYS.filter((option) => {
-      const defaultPin = defaultHw[option]?.pin;
+      const defaultPin = defaultHardware[option]?.pin;
       if (defaultPin === undefined) return false;
 
       // A fixed FW feature or a reference design's own named connector
@@ -873,9 +924,11 @@
       return occupant !== undefined && TABLE_OPTION_KEYS.includes(occupant);
     });
 
-    // Rows freshly read from the FC are never "unset" — only ones
-    // added afterwards via "+ Add" start in that placeholder state.
-    unsetOptions = [];
+    // Rows freshly read from the FC are never "unset", except a
+    // manufacturer-design fallback anchor (see above), which starts
+    // exactly like a manually "+ Add"ed row: labelled correctly, but
+    // with no value assigned until the user actually picks one.
+    unsetOptions = fallbackAnchors;
   }
 
   /**
@@ -957,7 +1010,7 @@
   // dynamically-added row (a beyond-capacity M5+/S9+, or a generic
   // UART/I2C port -- see isPermanentOption) ever reaches here at all,
   // since every permanent row already has one. It starts "unset" (the
-  // "Set Option" placeholder) unless its resource turns out to already
+  // "Default" placeholder) unless its resource turns out to already
   // be assigned, in which case its real value shows straight away.
   /**
    * @param {Event} e
@@ -1446,7 +1499,7 @@
                             ? [
                                 {
                                   value: "",
-                                  label: $i18n.t("remapFcSetOption"),
+                                  label: $i18n.t("remapFcDefaultOption"),
                                   disabled: true,
                                   hidden: true,
                                 },

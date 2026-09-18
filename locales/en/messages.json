@@ -525,9 +525,6 @@
     "remapFcNoneOption": {
         "message": "None"
     },
-    "remapFcSetOption": {
-        "message": "Set Option"
-    },
     "remapFcCloseCard": {
         "message": "Close"
     },

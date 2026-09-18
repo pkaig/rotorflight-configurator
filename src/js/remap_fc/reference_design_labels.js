@@ -193,6 +193,19 @@ function isGenericPortUsage(usageName) {
   return usageName.startsWith("Port ");
 }
 
+function namedConnectorPinsFromUsages(usages) {
+  if (!usages) return new Set();
+
+  const pins = new Set();
+  for (const [usageName, entries] of Object.entries(usages)) {
+    if (isGenericPortUsage(usageName) || RESERVED_USAGE_NAMES.has(usageName)) continue;
+    for (const entry of entries) {
+      pins.add(normalizePin(entry.pin));
+    }
+  }
+  return pins;
+}
+
 /**
  * @param {Object} referenceDesigns - The parsed contents of reference_designs.json.
  * @param {?string} boardDesign - e.g. "F7C5", from FC.CONFIG.boardDesign.
@@ -207,17 +220,29 @@ function isGenericPortUsage(usageName) {
  *   support wiring (see buildReservedPins).
  */
 export function buildNamedConnectorPins(referenceDesigns, boardDesign, boardName) {
-  const usages = findUsages(referenceDesigns, boardDesign, boardName);
-  if (!usages) return new Set();
+  return namedConnectorPinsFromUsages(
+    findUsages(referenceDesigns, boardDesign, boardName),
+  );
+}
 
-  const pins = new Set();
-  for (const [usageName, entries] of Object.entries(usages)) {
-    if (isGenericPortUsage(usageName) || RESERVED_USAGE_NAMES.has(usageName)) continue;
-    for (const entry of entries) {
-      pins.add(normalizePin(entry.pin));
-    }
-  }
-  return pins;
+/**
+ * Same as buildNamedConnectorPins, but only ever consults a manufacturer
+ * design match (findUsagesByName), never an official reference design's
+ * family match. Used by RemapFc.svelte's setHardware to decide which
+ * named connectors need its own-defaults fallback (see that function's
+ * own comment): an official F7A/F7B/F7C reference design's named
+ * connectors are always genuinely populated by real compiled firmware
+ * defaults, so a pin with nothing at all assigned there means something
+ * else is going on, not the same "physically wired but left
+ * unconfigured in this firmware build" situation a manufacturer's own
+ * board can have (e.g. Flydragon Pro's AUX).
+ * @param {Object} referenceDesigns - The parsed contents of manufacturer_designs.json (merged with reference_designs.json).
+ * @param {?string} boardName - e.g. "FLYDRAGON_PRO42688", from FC.CONFIG.boardName.
+ * @returns {Set<string>} pins (e.g. "B09") for named connectors a
+ *   manufacturer design documents.
+ */
+export function buildManufacturerNamedConnectorPins(referenceDesigns, boardName) {
+  return namedConnectorPinsFromUsages(findUsagesByName(referenceDesigns, boardName));
 }
 
 /**
