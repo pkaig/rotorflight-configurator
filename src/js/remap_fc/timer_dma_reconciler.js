@@ -241,22 +241,39 @@ export function reallocateTimersAndDma(
 }
 
 /**
- * Which features in a fresh allocation still genuinely collide with
- * each other, checking the allocation's own *output* for exactly the
- * rules detectClashes checks against the *current*, pre-allocation
- * state: two features sharing a full timer+channel, two different
- * feature types sharing a base, a feature sitting on a timer/DMA
- * stream this tool doesn't control, or two features sharing a DMA
- * stream. This is what actually catches a forced choice
- * timer_allocator.js's pickBestOption or dma_allocator.js's
- * allocateDma pushed through despite every option colliding with
- * something -- see each of their own file comments for why they force
- * one through rather than leaving the feature unconfigured.
- * @param {FeatureTimerRow[]} featureRows - For each result's own type.
+ * Which features in a fresh allocation still genuinely can't be sent as
+ * a working configuration, checking the allocation's own *output* for
+ * exactly the rules detectClashes checks against the *current*,
+ * pre-allocation state -- two features sharing a full timer+channel,
+ * two different feature types sharing a base, a feature sitting on a
+ * timer/DMA stream this tool doesn't control, or two features sharing a
+ * DMA stream -- plus one the pre-allocation state can't have: a feature
+ * that needs DMA whose *chosen* timer simply has no DMA options at all.
+ *
+ * The collision checks are what catch a forced choice
+ * timer_allocator.js's pickBestOption or dma_allocator.js's allocateDma
+ * pushed through despite every option colliding with something -- see
+ * each of their own file comments for why they force one through
+ * rather than leaving the feature unconfigured. The zero-DMA-options
+ * check catches a different failure those two can't force their way
+ * out of: allocateDma only ever forces a *colliding* choice through
+ * when the chosen timer has DMA options at all, just all already
+ * claimed (dmaOptions.length > 0); when the chosen timer has none
+ * whatsoever (dmaOptions.length === 0 -- e.g. a pin whose only timer
+ * alternate functions are on basic timers with no DMA request line at
+ * all), it correctly leaves selectedDMAIndex at -1 instead of
+ * fabricating one. Left unchecked, that reads as "nothing wrong here"
+ * to the caller: a timer command still gets sent for a motor/LED that
+ * will never actually receive any DMA-driven output. No reallocation
+ * of timers/DMA among features could ever fix this -- the pin itself
+ * has no usable option -- so this is exactly the class of problem
+ * pin_conflict_suggestions.js's swap/move search exists for, and it
+ * only runs for features this function reports.
+ * @param {FeatureTimerRow[]} featureRows - For each result's own type/needsDma.
  * @param {FeatureAllocation[]} allocation
  * @param {Set<string>} reservedStreams
  * @param {Set<string>} reservedTimers
- * @returns {Set<string>} Feature keys still colliding with something.
+ * @returns {Set<string>} Feature keys that can't be sent as-is.
  */
 function stillConflictingFeatures(
   featureRows,
@@ -264,14 +281,14 @@ function stillConflictingFeatures(
   reservedStreams,
   reservedTimers,
 ) {
-  const typeByFeature = new Map(featureRows.map((row) => [row.feature, row.type]));
+  const rowByFeature = new Map(featureRows.map((row) => [row.feature, row]));
   const seenFullTimers = new Map();
   const baseOwner = new Map();
   const seenDma = new Map();
   const conflicting = new Set();
 
   for (const result of allocation) {
-    const type = typeByFeature.get(result.feature);
+    const type = rowByFeature.get(result.feature)?.type;
 
     if (result.chosen) {
       const { timer, base } = result.chosen;
@@ -308,6 +325,12 @@ function stillConflictingFeatures(
       } else {
         seenDma.set(stream, result.feature);
       }
+    } else if (
+      rowByFeature.get(result.feature)?.needsDma &&
+      result.chosen &&
+      result.dma?.selectedDMAIndex === -1
+    ) {
+      conflicting.add(result.feature);
     }
   }
 
