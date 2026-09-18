@@ -38,12 +38,22 @@
  *      available -- otherwise a freq input claiming a base purely for
  *      its own convenience can cost a motor/the LED strip a DMA option
  *      it has no alternative for.
+ *   8. S4 -- a helicopter's tail servo, by this tool's own convention
+ *      (S1-S3 are the cyclic/swashplate servos, see rule 4) -- prefers
+ *      a base other than whichever one(s) S1-S3 ended up on, since a
+ *      base's period/prescaler is shared across every channel on it: a
+ *      tail servo is often a high-speed digital one needing its own
+ *      independent update rate, which sharing a base with the slower
+ *      cyclic servos would prevent. Soft preference only, the same
+ *      shape as rule 6's DMA preference -- still perfectly fine to
+ *      share S1-S3's base if no other option exists for S4 at all.
  *
  * Allocation runs in a fixed order -- freq inputs, LED strip, S1-S3 as
- * a group, remaining servos, M1-M4 as a group, remaining motors, then
- * everything else -- so the features with the narrowest options are
- * resolved first, before their preferred bases get taken by something
- * more flexible.
+ * a group (then individually if grouping fails), S4 (see rule 8),
+ * remaining servos, M1-M4 as a group, remaining motors, then everything
+ * else -- so the features with the narrowest options are resolved
+ * first, before their preferred bases get taken by something more
+ * flexible.
  */
 
 import { classifyFeature, SERVO_GROUP, MOTOR_GROUP } from "./feature_classifier.js";
@@ -187,10 +197,19 @@ export function allocateTimers(features, reservedTimers = new Set()) {
   // and refusing to actually send it, rather than this allocator
   // silently leaving the feature unconfigured, which would read as
   // "nothing wrong here" when something very much still is.
-  function pickBestOption(row, label, avoidCritical = true) {
+  //
+  // avoidBases (rule 8, S4 only) is the same shape of soft preference
+  // as rule 6's DMA one: narrows the pool to options whose base isn't
+  // in the set, but only when that narrowing actually leaves something
+  // -- never at the cost of falling back to the "forced" escape hatch,
+  // since avoiding a base is a convenience, not a correctness rule the
+  // way avoiding an already-clashing option is.
+  function pickBestOption(row, label, avoidCritical = true, avoidBases = new Set()) {
     const candidates = row.options.filter((o) => canUseOption(row, o, avoidCritical));
     const forced = candidates.length === 0 && row.options.length > 0;
-    const pool = forced ? row.options : candidates;
+    const validPool = forced ? row.options : candidates;
+    const preferred = validPool.filter((o) => !avoidBases.has(o.base));
+    const pool = !forced && preferred.length > 0 ? preferred : validPool;
     const nonNegative = pool.filter((o) => !o.negative);
 
     // See rule 6 -- a DMA-capable option is worth preferring over a
@@ -340,20 +359,38 @@ export function allocateTimers(features, reservedTimers = new Set()) {
   const ledRow = rows.find((r) => r.type === "led");
   if (ledRow) pickBestOption(ledRow, "LED_STRIP: assigned");
 
-  // 3) S1-S3 as a group, then whatever's left individually.
+  // 3) S1-S3 as a group, then any of them still unresolved (grouping
+  // can fail) individually -- both done before S4 specifically, so
+  // rule 8's avoidBases below always sees S1-S3's real, final bases
+  // regardless of whether grouping succeeded.
   tryGroup(SERVO_GROUP, "servo S1-S3");
+  for (const row of rows.filter((r) => SERVO_GROUP.includes(r.feature) && !r.chosen)) {
+    pickBestOption(row, "servo: assigned");
+  }
+
+  // 4) S4 (rule 8): prefers a base other than whatever S1-S3 landed on.
+  const cyclicBases = new Set(
+    rows
+      .filter((r) => SERVO_GROUP.includes(r.feature) && r.chosen)
+      .map((r) => r.chosen.base),
+  );
+  const tailRow = rows.find((r) => r.feature === "S4" && !r.chosen);
+  if (tailRow) pickBestOption(tailRow, "servo: assigned", true, cyclicBases);
+
+  // 5) Every other servo (S5-S8), individually -- no base preference,
+  // this tool has no convention for what they're used for.
   for (const row of rows.filter((r) => r.type === "servo" && !r.chosen)) {
     pickBestOption(row, "servo: assigned");
   }
 
-  // 4) M1-M4 as a group, then whatever's left individually. preferDma
+  // 6) M1-M4 as a group, then whatever's left individually. preferDma
   // (rule 6): unlike S1-S3, motors need DMA.
   tryGroup(MOTOR_GROUP, "motor M1-M4", true);
   for (const row of rows.filter((r) => r.type === "motor" && !r.chosen)) {
     pickBestOption(row, "motor: assigned");
   }
 
-  // 5) Everything else, individually.
+  // 7) Everything else, individually.
   for (const row of rows.filter((r) => r.type === "other" && !r.chosen)) {
     pickBestOption(row, "other: assigned");
   }
