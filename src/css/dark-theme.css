@@ -449,6 +449,14 @@ html[data-theme=dark] .tab-mixer .mixerOverrideTable tbody tr:nth-child(odd) {
     background-color: #393939;
 }
 
+html[data-theme=dark] .tab-mixer .mixerCustomRulesTable tbody tr {
+    background-color: #393939;
+}
+
+html[data-theme=dark] .tab-mixer .mixerCustomRulesTable tbody tr.mixerRuleGroupOdd {
+    background-color: #3f3f3f;
+}
+
 
 /* BLACKBOX TAB */
 

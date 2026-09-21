@@ -10,9 +10,6 @@
             <div class="note mixerCustomNote">
                 <p i18n="mixerCustomNote"></p>
             </div>
-            <div class="note mixerRulesNote">
-                <p i18n="mixerRulesNote"></p>
-            </div>
             <div class="note mixerBidirNote">
                 <p i18n="mixerBidirNote"></p>
             </div>
@@ -450,8 +447,47 @@
             </div>
         </div>
 
+        <!-- CUSTOM MIXER RULES -->
+        <div class="grid-row">
+            <div class="grid-col col6">
+                <div class="customRules">
+                    <div class="gui_box">
+                        <div class="gui_box_titlebar no-bottom-margin">
+                            <div class="spacer_box_title" i18n="mixerCustomRules"></div>
+                            <div class="helpicon cf_tip" i18n_title="mixerCustomRulesHelp"></div>
+                            <div class="mixerCustomRuleCount"></div>
+                        </div>
+                        <div class="note mixerCustomRuleCollisionNote" style="display:none">
+                            <p i18n="mixerCustomRuleCollisionNote"></p>
+                        </div>
+                        <div class="mixerCustomRulesWrapper">
+                            <table class="mixerCustomRulesTable">
+                                <thead>
+                                    <tr class="trhead">
+                                        <th i18n="mixerRuleIndex"></th>
+                                        <th i18n="mixerRuleOutput"></th>
+                                        <th i18n="mixerRuleInput"></th>
+                                        <th i18n="mixerRuleOper"></th>
+                                        <th i18n="mixerRuleOffset"></th>
+                                        <th i18n="mixerRuleWeight"></th>
+                                        <th class="mixerRuleActionsCell" i18n="mixerRuleActions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- ROWS GENERATED HERE: a row per rule, plus one
+                                         trailing blank row (while a free slot remains)
+                                         that doubles as the "add a rule" affordance -
+                                         editing any field in it commits a new rule. -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- OVERRIDE -->
-        <div class="override">
+        <div class="mixerOverrideSection">
             <!--div class="grid-row margin-top">
                 <div class="grid-col full-width">
                     <div class="note mixerOverrideNote">
@@ -524,40 +560,55 @@
 
 <div id="tab-mixer-templates">
 
-    <table class="mixerRuleTemplate">
+    <table class="mixerCustomRuleTemplate">
         <tbody>
-            <tr class="mixerRule">
-                <td><span id="index"></span></td>
+            <tr class="mixerCustomRule">
+                <td><span class="mixerRuleIndexLabel"></span></td>
                 <td>
                     <div>
-                        <select id="oper">
+                        <select class="mixerRuleOutput">
                             <!-- LIST GENERATED HERE -->
                         </select>
                     </div>
                 </td>
                 <td>
                     <div>
-                        <select id="input">
+                        <select class="mixerRuleInput">
                             <!-- LIST GENERATED HERE -->
                         </select>
                     </div>
                 </td>
                 <td>
                     <div>
-                        <select id="output">
+                        <select class="mixerRuleOper">
                             <!-- LIST GENERATED HERE -->
                         </select>
                     </div>
                 </td>
                 <td>
                     <div>
-                        <input id="offset" type="number" min="-1000" max="1000" step="10" />
+                        <input class="mixerRuleOffset" type="number" min="-2500" max="2500" step="10" />
                     </div>
                 </td>
                 <td>
                     <div>
-                        <input id="weight" type="number" min="-5000" max="5000" step="10" />
+                        <input class="mixerRuleWeight" type="number" min="-10000" max="10000" step="10" />
                     </div>
+                </td>
+                <td class="mixerRuleActionsCell">
+                    <a href="#" class="mixerRuleMoveUp cf_tip" i18n_title="mixerRuleMoveUpHelp">&#9650;</a>
+                    <a href="#" class="mixerRuleMoveDown cf_tip" i18n_title="mixerRuleMoveDownHelp">&#9660;</a>
+                    <a href="#" class="mixerRuleDelete cf_tip" i18n_title="mixerRuleDeleteHelp">&#10005;</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="mixerAddRuleTemplate">
+        <tbody>
+            <tr class="mixerAddRuleRow">
+                <td colspan="7">
+                    <a href="#" class="mixerRuleAddButton regular-button" i18n="mixerRuleAddButton"></a>
                 </td>
             </tr>
         </tbody>

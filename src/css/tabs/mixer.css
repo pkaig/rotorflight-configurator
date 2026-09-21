@@ -83,13 +83,23 @@
     border-top: 1px dotted var(--superSubtleAccent);
 }
 
-.tab-mixer .override {
+.tab-mixer .mixerOverrideSection {
     overflow-x: auto;
     overflow-y: hidden;
     max-width: 100%;
 }
 
-.tab-mixer .override .gui_box {
+.tab-mixer .mixerOverrideSection .gui_box {
+    /* The generic .gui_box rule (main.css) floats itself with a
+       percentage width, which is fine as a plain child of a normal block
+       (.customRules works this way) but collapses to ~0 width here
+       because .mixerOverrideSection establishes its own block formatting
+       context (overflow-x: auto) - a BFC root sizing itself around a
+       percentage-width float creates a circular width computation.
+       Un-floating it removes the circularity; everything else about the
+       rule (including the width itself) still applies normally. */
+    float: none;
+
     padding-top: 0px;
     padding-bottom: 0px;
     margin-bottom: 0;
@@ -249,6 +259,201 @@
 
 .tab-mixer .mixerMotorisedTailCalibrationNote .note {
     margin: 4px 0 0;
+}
+
+.tab-mixer .customRules {
+    /* .gui_box (main.css) floats itself with a percentage width. Every
+       other section on this page either lives inside a flex item
+       (.configuration's .grid-col, which contains its own floats
+       automatically) or already establishes its own block formatting
+       context (.mixerOverrideSection, via overflow-x: auto) - .customRules
+       is a plain block with neither, so its floated .gui_box escapes
+       uncleared and eats into whatever section comes right after it in
+       .content_wrapper, squeezing it down to a sliver. flow-root
+       contains the float here without any of overflow:hidden's
+       side effects (e.g. clipping a <select>'s dropdown).*/
+    display: flow-root;
+}
+
+.tab-mixer .customRules .gui_box_titlebar {
+    display: flex;
+    align-items: center;
+}
+
+.tab-mixer .mixerCustomRuleCount {
+    margin-left: auto;
+    color: var(--quietText);
+    font-size: 11px;
+}
+
+.tab-mixer .mixerCustomRulesTable {
+    width: 100%;
+    border: 0;
+    border-collapse: collapse;
+    margin-top: 2px;
+    /* Fixed layout so the table actually fits its narrower (grid-col
+       col6) container - auto layout would size the Output/Controlled by
+       columns to their widest option text (e.g. "RC Channel Collective")
+       and fight the container instead of shrinking to it. Column widths
+       below are declared explicitly since fixed layout doesn't infer them
+       from content. */
+    table-layout: fixed;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(1),
+.tab-mixer .mixerCustomRulesTable td:nth-child(1) {
+    width: 5%;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(2),
+.tab-mixer .mixerCustomRulesTable td:nth-child(2) {
+    width: 16%;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(3),
+.tab-mixer .mixerCustomRulesTable td:nth-child(3) {
+    width: 26%;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(4),
+.tab-mixer .mixerCustomRulesTable td:nth-child(4) {
+    width: 13%;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(5),
+.tab-mixer .mixerCustomRulesTable td:nth-child(5) {
+    width: 13%;
+}
+
+.tab-mixer .mixerCustomRulesTable th:nth-child(6),
+.tab-mixer .mixerCustomRulesTable td:nth-child(6) {
+    width: 13%;
+}
+
+.tab-mixer .mixerCustomRulesTable .trhead {
+    color: var(--quietText);
+    background-color: var(--button-background);
+    text-align: left;
+    font-size: 11px;
+    line-height: 16px;
+    height: 22px;
+    border-top: 1px solid var(--boxBackground);
+}
+
+.tab-mixer .mixerCustomRulesTable th,
+.tab-mixer .mixerCustomRulesTable td {
+    padding: 4px 6px;
+    border: 1px solid var(--subtleAccent);
+}
+
+.tab-mixer .mixerCustomRulesTable tbody tr {
+    background-color: #e9e9e9;
+}
+
+.tab-mixer .mixerCustomRulesTable tbody tr.mixerRuleGroupOdd {
+    background-color: #f8f8f8;
+}
+
+/* All the rules targeting one output are enclosed in a single box: the
+   border between rows in the same group is dropped, and a full border is
+   drawn only at the top/bottom of each group (a group of one rule still
+   gets its own box, so every rule is visibly "in a box" for the output it
+   drives). */
+.tab-mixer .mixerCustomRulesTable tbody tr.mixerCustomRule td {
+    border-top: none;
+    border-bottom: none;
+}
+
+.tab-mixer .mixerCustomRulesTable tbody tr.mixerRuleGroupStart td {
+    border-top: 1px solid var(--subtleAccent);
+}
+
+.tab-mixer .mixerCustomRulesTable tbody tr.mixerRuleGroupEnd td {
+    border-bottom: 1px solid var(--subtleAccent);
+}
+
+/* The trailing blank/add row is never part of a group - always give it its
+   own border regardless, with a dashed top to set it apart from the last
+   real box above it. */
+.tab-mixer .mixerCustomRulesTable tbody tr.mixerCustomRuleBlank td {
+    border-top: 1px dashed var(--subtleAccent);
+    border-bottom: 1px solid var(--subtleAccent);
+}
+
+.tab-mixer .mixerCustomRulesTable select,
+.tab-mixer .mixerCustomRulesTable input {
+    width: 100%;
+    box-sizing: border-box;
+    /* The narrower fixed-width columns can be tighter than some option
+       labels (e.g. "RC Channel Collective") - clip cleanly rather than
+       overflowing the cell or wrapping. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleIndexLabel {
+    font-weight: bold;
+}
+
+.tab-mixer .mixerRuleActionsCell {
+    /* 14%, i.e. the 7th column's share of the fixed-layout table above
+       (5+16+26+13+13+13+14 = 100) - the old width:1% auto-layout
+       shrink-to-content trick doesn't apply under table-layout: fixed. */
+    width: 14%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveUp,
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveDown,
+.tab-mixer .mixerCustomRulesTable .mixerRuleDelete {
+    display: inline-block;
+    width: 18px;
+    color: var(--quietText);
+    text-decoration: none;
+    font-size: 10px;
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleDelete {
+    font-size: 13px;
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveUp:hover,
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveDown:hover {
+    color: var(--defaultText);
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleDelete:hover {
+    color: var(--error);
+}
+
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveUp.disabled,
+.tab-mixer .mixerCustomRulesTable .mixerRuleMoveDown.disabled {
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.tab-mixer .mixerCustomRulesTable tr.mixerRuleCollision {
+    box-shadow: inset 3px 0 0 var(--attention);
+}
+
+.tab-mixer .mixerCustomRulesTable tr.mixerCustomRuleBlank {
+    opacity: 0.6;
+}
+
+.tab-mixer .mixerCustomRulesTable tr.mixerCustomRuleBlank:focus-within,
+.tab-mixer .mixerCustomRulesTable tr.mixerCustomRuleBlank:hover {
+    opacity: 1;
+}
+
+.tab-mixer .mixerCustomRulesTable tr.mixerAddRuleRow td {
+    text-align: center;
+    border-top: 1px dashed var(--subtleAccent);
+}
+
+.tab-mixer .mixerCustomRulesTable tr.mixerAddRuleRow .mixerRuleAddButton {
+    margin: 4px 0;
 }
 
 @media all and (max-width: 575px) {

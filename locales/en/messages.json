@@ -2929,8 +2929,50 @@
     "mixerCustomNote": {
         "message": "<span class=\"message-negative\">Warning:</span> The Mixer is configured with a <strong>custom setup</strong> that can't be presented in the GUI. Any configuration changes must be done in the CLI, with the <code>mixer</code> command."
     },
-    "mixerRulesNote": {
-        "message": "<span class=\"message-negative\">Warning:</span> The Mixer is configured with <strong>custom</strong> rules. Any rule changes must be done in the CLI, with the <code>mixer rule</code> command."
+    "mixerCustomRules": {
+        "message": "Custom Mixer Rules"
+    },
+    "mixerCustomRulesHelp": {
+        "message": "Rules beyond the standard swash and tail mixing. Each rule maps an input (a stabilized axis, RC command or RC channel) to a servo or motor output, with an optional weight and offset. These are always applied in addition to the standard mixing above."
+    },
+    "mixerCustomRuleCollisionNote": {
+        "message": "<span class=\"message-negative\">Warning:</span> One or more rules below use <strong>Set</strong> on an output that the current swash type already drives. That rule will override the built-in mixing on that output instead of adding to it."
+    },
+    "mixerRuleIndex": {
+        "message": "#"
+    },
+    "mixerRuleOper": {
+        "message": "Rule"
+    },
+    "mixerRuleInput": {
+        "message": "Controlled by"
+    },
+    "mixerRuleOutput": {
+        "message": "Output"
+    },
+    "mixerRuleOffset": {
+        "message": "Offset"
+    },
+    "mixerRuleWeight": {
+        "message": "Weight"
+    },
+    "mixerRuleDeleteHelp": {
+        "message": "Remove this rule"
+    },
+    "mixerRuleAddButton": {
+        "message": "Add Rule"
+    },
+    "mixerRuleCancelHelp": {
+        "message": "Cancel adding this rule"
+    },
+    "mixerRuleMoveUpHelp": {
+        "message": "Move this rule earlier"
+    },
+    "mixerRuleMoveDownHelp": {
+        "message": "Move this rule later"
+    },
+    "mixerRuleActions": {
+        "message": ""
     },
     "mixerBidirNote": {
         "message": "<span class=\"message-negative\">Warning:</span> <i>Bidirectional tail motor</i> is an experimental feature that requires additional settings in the CLI."
@@ -3305,73 +3347,73 @@
         "message": "RC Channel AUX3"
     },
     "mixerInputRCChannel9": {
-        "message": "RC Channel #9"
+        "message": "RC Channel 9"
     },
     "mixerInputRCChannel10": {
-        "message": "RC Channel #10"
+        "message": "RC Channel 10"
     },
     "mixerInputRCChannel11": {
-        "message": "RC Channel #11"
+        "message": "RC Channel 11"
     },
     "mixerInputRCChannel12": {
-        "message": "RC Channel #12"
+        "message": "RC Channel 12"
     },
     "mixerInputRCChannel13": {
-        "message": "RC Channel #13"
+        "message": "RC Channel 13"
     },
     "mixerInputRCChannel14": {
-        "message": "RC Channel #14"
+        "message": "RC Channel 14"
     },
     "mixerInputRCChannel15": {
-        "message": "RC Channel #15"
+        "message": "RC Channel 15"
     },
     "mixerInputRCChannel16": {
-        "message": "RC Channel #16"
+        "message": "RC Channel 16"
     },
     "mixerInputRCChannel17": {
-        "message": "RC Channel #17"
+        "message": "RC Channel 17"
     },
     "mixerInputRCChannel18": {
-        "message": "RC Channel #18"
+        "message": "RC Channel 18"
     },
     "mixerOutputNone": {
         "message": "-"
     },
     "mixerOutputServo1": {
-        "message": "Servo #1"
+        "message": "Servo 1"
     },
     "mixerOutputServo2": {
-        "message": "Servo #2"
+        "message": "Servo 2"
     },
     "mixerOutputServo3": {
-        "message": "Servo #3"
+        "message": "Servo 3"
     },
     "mixerOutputServo4": {
-        "message": "Servo #4"
+        "message": "Servo 4"
     },
     "mixerOutputServo5": {
-        "message": "Servo #5"
+        "message": "Servo 5"
     },
     "mixerOutputServo6": {
-        "message": "Servo #6"
+        "message": "Servo 6"
     },
     "mixerOutputServo7": {
-        "message": "Servo #7"
+        "message": "Servo 7"
     },
     "mixerOutputServo8": {
-        "message": "Servo #8"
+        "message": "Servo 8"
     },
     "mixerOutputMotor1": {
-        "message": "Motor #1"
+        "message": "Motor 1"
     },
     "mixerOutputMotor2": {
-        "message": "Motor #2"
+        "message": "Motor 2"
     },
     "mixerOutputMotor3": {
-        "message": "Motor #3"
+        "message": "Motor 3"
     },
     "mixerOutputMotor4": {
-        "message": "Motor #4"
+        "message": "Motor 4"
     },
     "dialogMixerResetTitle": {
         "message": "<span class=\"message-negative\">WARNING: Mixer Reset</span>"
