@@ -150,12 +150,28 @@ tab.initialize = function (callback) {
     // no-op for anything else), so offering the checkbox there would look
     // functional but silently do nothing. Removing the checkbox itself
     // (rather than just leaving it unwired) means every later reference to
-    // mixerPassthrough below is a harmless no-op on an empty jQuery
-    // selection, so the rest of this function doesn't need to know which
+    // mixerPassthrough below is a harmless no-op on a detached checkbox
+    // that's still in the jQuery selection but never in the document -
+    // reading its (always-false, never user-touched) checked state costs
+    // nothing, so the rest of this function doesn't need to know which
     // mode it's in.
-    function add_override(axis, allowPassthrough = true) {
+    // group, when given (only by the grouped rows in renderDynamicOverrides()
+    // below), describes the row-spanning "which output" and "live position"
+    // cells shared by every row in one output's group:
+    // { template, targetTable, name, dst, first, size } - template/
+    // targetTable pick which markup to clone from and which table to
+    // append to (the plain mixerOverrideTemplate/mixerOverrideTable for
+    // the stabilized axes, mixerDynamicOverrideTemplate/
+    // mixerDynamicOverrideTable for these); first/size say whether this
+    // row is the one that should carry the two rowspan cells for its
+    // group (and how many rows they span), so every other row in the
+    // group can omit them entirely rather than leaving them empty.
+    function add_override(axis, allowPassthrough = true, group = null) {
 
-        const mixerOverride = $('#tab-mixer-templates .mixerOverrideTemplate tr').clone();
+        const template = group ? group.template : 'mixerOverrideTemplate';
+        const targetTable = group ? group.targetTable : '.mixerOverrideTable';
+
+        const mixerOverride = $('#tab-mixer-templates .' + template + ' tr').clone();
 
         const mixerSlider = mixerOverride.find('.mixerOverrideSlider').get(0);
         const mixerEnable = mixerOverride.find('.mixerOverrideEnable input');
@@ -164,6 +180,28 @@ tab.initialize = function (callback) {
 
         if (!allowPassthrough)
             mixerPassthrough.remove();
+
+        if (group) {
+            const positionCell = mixerOverride.find('.mixerDynamicOverridePositionCell');
+
+            if (group.first) {
+                positionCell.attr('rowspan', group.size);
+                positionCell.attr('data-output', group.dst);
+                positionCell.find('.mixerOutputPositionLabel').text(group.name);
+            }
+            else {
+                positionCell.remove();
+            }
+
+            // The rowspan cells always have their own full border (they
+            // span the whole group by definition), but the ordinary
+            // per-row cells between them would otherwise get a border
+            // between every rule in the same group - group-start/end
+            // marks which row's cells should keep the group's outer top/
+            // bottom edge, with none between them.
+            mixerOverride.toggleClass('mixerDynamicOverrideGroupStart', group.first);
+            mixerOverride.toggleClass('mixerDynamicOverrideGroupEnd', group.last);
+        }
 
         const inputIndex = axis.axis;
 
@@ -193,6 +231,13 @@ tab.initialize = function (callback) {
         // microseconds, where the neutral position is 1500, not 0.
         const center = axis.center || 0;
 
+        // Every row keeps its tick marks (useful as a visual reference on
+        // its own), but only the last (bottom-most) rule in a group shows
+        // the numeric labels under them - repeating the same 1000-2000
+        // scale text under every rule once they're stacked together would
+        // just be redundant clutter. The labels are hidden per row via
+        // CSS (.mixerDynamicOverrideGroupEnd), not by leaving pips off
+        // here, so the ticks themselves are unaffected.
         noUiSlider.create(mixerSlider, {
             range: {
                 'min': axis.min,
@@ -235,8 +280,6 @@ tab.initialize = function (callback) {
                     value = Math.round((parseFloat(getNumberInput(mixerInput)) - center) / axis.scale);
                 }
             }
-
-            console.log("mixerOverride axis " + inputIndex + " value " + value);
 
             FC.MIXER_OVERRIDE[inputIndex] = value;
             mspHelper.sendMixerOverride(inputIndex);
@@ -301,7 +344,7 @@ tab.initialize = function (callback) {
         mixerPassthrough.prop('checked', passthrough);
         toggleMixerSlider(mutable);
 
-        $('.mixerOverrideTable tbody').append(mixerOverride);
+        $(targetTable + ' tbody').append(mixerOverride);
     }
 
     // Inputs (1-4: stabilized roll/pitch/yaw/collective) already covered by
@@ -310,30 +353,91 @@ tab.initialize = function (callback) {
     // there.
     const STATIC_OVERRIDE_INPUTS = new Set([1, 2, 3, 4]);
 
-    // Inputs (FC.MIXER_RULES[i].src) referenced by at least one visible
-    // custom rule, other than "None" and the stabilized axes already
-    // covered above.
-    function dynamicOverrideInputSet() {
-        const inputs = new Set();
+    // Outputs (FC.MIXER_RULES[i].dst) driven by at least one custom rule
+    // whose input isn't "None" or one of the stabilized axes above,
+    // mapped to the set of such inputs feeding that output - e.g.
+    // { 1: Set{17, 20} } for a Servo1 driven by both RC Channel AUX2 and
+    // RC Channel 10. Rules sharing an output are grouped together so it's
+    // clear which rules combine to drive a given servo/motor, and each
+    // can be forced/tested independently to see its individual effect.
+    // The rare case of the same input feeding more than one output shows
+    // that input under every output it affects, since overriding it
+    // really does affect all of them simultaneously - there's no single
+    // group it "belongs" to more than another.
+    function dynamicOverrideGroups() {
+        const groups = new Map();
         const visibleCount = visibleRuleCount();
 
         for (let index = 0; index < visibleCount; index++) {
-            const src = FC.MIXER_RULES[index].src;
-            if (src !== 0 && !STATIC_OVERRIDE_INPUTS.has(src))
-                inputs.add(src);
+            const rule = FC.MIXER_RULES[index];
+            const src = rule.src, dst = rule.dst;
+            if (src === 0 || dst === 0 || STATIC_OVERRIDE_INPUTS.has(src))
+                continue;
+
+            if (!groups.has(dst))
+                groups.set(dst, new Set());
+            groups.get(dst).add(src);
         }
 
-        return inputs;
+        return groups;
     }
 
-    // Adds an override row (percentage slider, no passthrough - see
-    // add_override() above) for every input the custom mixer rules
-    // currently reference, so those can be forced/tested the same way the
-    // stabilized axes can, without hand-building a dedicated slider for
-    // every one of the 29 possible mixer inputs. Called whenever the rule
-    // table changes, since editing any rule's input can change this set.
+    // Physical output index (into FC.SERVO_DATA / FC.MOTOR_DATA) for a
+    // given Mixer.outputNames dst value: Servo N (dst 1-8) is
+    // FC.SERVO_DATA[N-1], Motor N (dst 27-30) is FC.MOTOR_DATA[N-27].
+    function liveOutputValue(dst) {
+        if (dst >= 1 && dst <= 8)
+            return FC.SERVO_DATA[dst - 1];
+        if (dst >= 27 && dst <= 30)
+            return FC.MOTOR_DATA[dst - 27];
+        return undefined;
+    }
+
+    // Refreshes the position readout and rotating arm on every group's
+    // rowspan position cell currently shown, from the live
+    // FC.SERVO_DATA/FC.MOTOR_DATA that pollLiveOutputs() below keeps
+    // current. This is the actual resulting physical output - combining
+    // every rule that targets it, not just whichever one you're currently
+    // testing - so it shows the real effect of each override rather than
+    // the override value alone.
+    function updateLiveOutputPositions() {
+        $('.mixerDynamicOverrideTable tbody .mixerDynamicOverridePositionCell').each(function () {
+            const dst = parseInt($(this).attr('data-output'), 10);
+            const value = liveOutputValue(dst);
+            if (value === undefined)
+                return;
+
+            const angle = ((value - 1500) / 500 * 60).clamp(-60, 60);
+
+            $(this).find('.mixerOutputPositionValue').text(Math.round(value));
+            $(this).find('.mixerOutputIconArm').attr('transform', 'rotate(' + angle + ' 32 32)');
+        });
+    }
+
+    function pollLiveOutputs() {
+        MSP.promise(MSPCodes.MSP_SERVO)
+            .then(() => MSP.promise(MSPCodes.MSP_MOTOR))
+            .then(updateLiveOutputPositions);
+    }
+
+    // Adds a row per (output, input) pair - grouped by output, with the
+    // output name and live position (percentage slider, no passthrough -
+    // see add_override() above) row-spanning every rule that feeds it -
+    // so each rule's individual contribution can be forced/tested and
+    // watched via the shared live position readout, without hand-building
+    // a dedicated slider for every one of the 29 possible mixer inputs.
+    // Called whenever the rule table changes, since editing any rule's
+    // input or output can change this grouping.
     function renderDynamicOverrides() {
-        const inputs = dynamicOverrideInputSet();
+        const groups = dynamicOverrideGroups();
+
+        // Flat set of every input across all groups, for the same
+        // "input no longer referenced, clear its override" safety check
+        // as before - unaffected by which output(s) it's grouped under.
+        const inputs = new Set();
+        groups.forEach(function (srcSet) {
+            srcSet.forEach(function (src) { inputs.add(src); });
+        });
 
         // An input that's no longer referenced by any rule loses its row -
         // make sure that doesn't leave an invisible, un-clearable override
@@ -348,35 +452,50 @@ tab.initialize = function (callback) {
         }
         self.dynamicOverrideInputs = inputs;
 
-        $('.mixerOverrideTable tbody .mixerDynamicOverride').remove();
+        $('.mixerDynamicOverrideTable tbody').empty();
 
-        Array.from(inputs).sort(function (a, b) { return a - b; }).forEach(function (index) {
-            // The slider is a percentage of this input's own configured
-            // range (FC.MIXER_INPUTS[index].min/max, e.g. -1000..1000 for
-            // an RC channel by default) - not a fixed percentage of the
-            // raw override range (-2500..2500). Anything past 100% here
-            // would just be silently clamped by the firmware's
-            // mixerApplyInputLimit() anyway, so a fixed-range slider would
-            // waste most of its travel doing nothing once you passed
-            // whatever fraction of 2500 this input's own limit happens to
-            // be.
-            // Displayed as an RC pulse width (µs) rather than a percentage -
-            // 1500 (center) is neutral, 1000/2000 are the endpoints. The
-            // standard RC range is 1000-2000µs (±500µs around center); this
-            // input's own configured limit is what actually corresponds to
-            // that ±500µs, so the slider still can't be pushed into the
-            // clamped region regardless of what that limit is.
-            const input = FC.MIXER_INPUTS[index];
-            const limit = Math.max(Math.abs(input.min), Math.abs(input.max)) || 1000;
+        Array.from(groups.keys()).sort(function (a, b) { return a - b; }).forEach(function (dst) {
+            const members = Array.from(groups.get(dst)).sort(function (a, b) { return a - b; });
 
-            add_override({
-                class: 'mixerDynamicOverride',
-                axis: index,
-                min: 1000, max: 2000, step: 1, fixed: 0, center: 1500,
-                scale: 500 / limit, sliderstep: 1, pipstep: 250, pipfix: 0,
-                pipval: [1000, 1250, 1500, 1750, 2000],
-            }, false);
+            members.forEach(function (index, position) {
+                // The slider is a percentage of this input's own
+                // configured range (FC.MIXER_INPUTS[index].min/max, e.g.
+                // -1000..1000 for an RC channel by default) - not a fixed
+                // percentage of the raw override range (-2500..2500).
+                // Anything past 100% here would just be silently clamped
+                // by the firmware's mixerApplyInputLimit() anyway, so a
+                // fixed-range slider would waste most of its travel doing
+                // nothing once you passed whatever fraction of 2500 this
+                // input's own limit happens to be.
+                // Displayed as an RC pulse width (µs) rather than a
+                // percentage - 1500 (center) is neutral, 1000/2000 are the
+                // endpoints. The standard RC range is 1000-2000µs (±500µs
+                // around center); this input's own configured limit is
+                // what actually corresponds to that ±500µs, so the slider
+                // still can't be pushed into the clamped region regardless
+                // of what that limit is.
+                const input = FC.MIXER_INPUTS[index];
+                const limit = Math.max(Math.abs(input.min), Math.abs(input.max)) || 1000;
+
+                add_override({
+                    class: 'mixerDynamicOverride',
+                    axis: index,
+                    min: 1000, max: 2000, step: 1, fixed: 0, center: 1500,
+                    scale: 500 / limit, sliderstep: 1, pipstep: 50, pipfix: 0,
+                    pipval: [1000, 1250, 1500, 1750, 2000],
+                }, false, {
+                    template: 'mixerDynamicOverrideTemplate',
+                    targetTable: '.mixerDynamicOverrideTable',
+                    name: i18n.getMessage(Mixer.outputNames[dst] || ('#' + dst)),
+                    dst: dst,
+                    first: position === 0,
+                    last: position === members.length - 1,
+                    size: members.length,
+                });
+            });
         });
+
+        updateLiveOutputPositions();
     }
 
     // Output indices (into Mixer.outputNames / FC.MIXER_RULES[i].dst) that the
@@ -572,24 +691,32 @@ tab.initialize = function (callback) {
 
     // Rules can also arrive already out of order - e.g. someone added a
     // custom mixer for an existing output straight from the CLI, or hand-
-    // edited a CLI dump. Called once right after loading, before the table
-    // is first drawn, this restores the "no gaps" invariant so the display
-    // never falls back to showing two separate boxes for the same output.
-    // It's a stable regroup: each output's rules keep their relative
-    // order, and the position an output first appears in decides where its
-    // whole group sits - the same end result repeated regroupRule() calls
-    // would reach, just done in one pass. "None" rules never merge with
-    // each other, matching computeRuleGroups(). Returns whether anything
+    // edited a CLI dump, possibly clearing some middle slot (e.g. `mixer
+    // rule 3 0 0 0 0 0`) while leaving later slots populated. Called once
+    // right after loading, before the table is first drawn, this restores
+    // both invariants renderCustomRules()/visibleRuleCount() rely on
+    // afterwards: every populated rule forms a contiguous prefix (no
+    // gaps), and rules for the same output are adjacent within it. It's a
+    // stable regroup: each output's rules keep their relative order, and
+    // the position an output first appears in decides where its whole
+    // group sits - the same end result repeated regroupRule() calls would
+    // reach, just done in one pass. "None" rules never merge with each
+    // other, matching computeRuleGroups(). Returns whether anything
     // actually moved, so the caller only marks the tab dirty - and so a
     // Save actually pushes the corrected order back to the FC - when
     // there's a real difference from what was loaded.
     function normalizeRuleGroups() {
-        const visibleCount = visibleRuleCount();
+        // Deliberately scans every slot rather than using
+        // visibleRuleCount(), which stops at the first null rule -
+        // exactly the kind of gap this function has to compact away, so
+        // relying on it here would silently strand every real rule past
+        // that gap instead of restoring them.
+        const populated = FC.MIXER_RULES.filter(function (rule) { return !Mixer.isNullRule(rule); });
+
         const groups = new Map();
         const order = [];
 
-        for (let index = 0; index < visibleCount; index++) {
-            const rule = FC.MIXER_RULES[index];
+        populated.forEach(function (rule) {
             const key = rule.dst === 0 ? Symbol() : rule.dst;
 
             if (!groups.has(key)) {
@@ -597,7 +724,7 @@ tab.initialize = function (callback) {
                 order.push(key);
             }
             groups.get(key).push(rule);
-        }
+        });
 
         let changed = false;
         let index = 0;
@@ -610,6 +737,19 @@ tab.initialize = function (callback) {
                 index++;
             });
         });
+
+        // Anything left over is either already-null padding or a stale
+        // rule now duplicated earlier in the compacted prefix above -
+        // either way it must become an explicit null, or a gap that used
+        // to sit before some of these rules would leave that duplicate
+        // sitting at its old slot.
+        while (index < FC.MIXER_RULES.length) {
+            if (!Mixer.isNullRule(FC.MIXER_RULES[index])) {
+                FC.MIXER_RULES[index] = Mixer.nullRule();
+                changed = true;
+            }
+            index++;
+        }
 
         return changed;
     }
@@ -929,6 +1069,13 @@ tab.initialize = function (callback) {
             add_override(axis);
         });
 
+        // Keeps the dynamic override groups' live position readouts
+        // current while this tab is open. Named and re-added (rather than
+        // added once) so a tab re-initialize (e.g. via HMR) can't end up
+        // with duplicate timers both polling the same thing.
+        GUI.interval_remove('mixer_output_pull');
+        GUI.interval_add('mixer_output_pull', pollLiveOutputs, 250, true);
+
         const enableOverrideSwitch = $('#mixerOverrideEnableSwitch');
         enableOverrideSwitch.prop('checked', FC.CONFIG.mixerOverrideEnabled);
 
@@ -948,11 +1095,11 @@ tab.initialize = function (callback) {
                 enablePassthroughSwitch.prop('checked', false).change();
             }
 
-            $('.mixerOverrideAxis').toggle(!!checked);
+            $('.mixerOverrideAxis, .mixerDynamicOverrideAxis').toggle(!!checked);
             $('.mixerOverrideActive .mixerOverrideEnable input').prop('checked', checked).change();
         });
 
-        $('.mixerOverrideAxis').toggle(!!FC.CONFIG.mixerOverrideEnabled);
+        $('.mixerOverrideAxis, .mixerDynamicOverrideAxis').toggle(!!FC.CONFIG.mixerOverrideEnabled);
 
         enablePassthroughSwitch.change(function () {
             const checked = enablePassthroughSwitch.prop('checked');

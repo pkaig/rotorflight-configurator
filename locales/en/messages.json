@@ -2944,6 +2944,9 @@
     "mixerRuleOper": {
         "message": "Rule"
     },
+    "mixerRuleOperHelp": {
+        "message": "Rules targeting the same output are applied in the order shown, each one building on the last: Set replaces the running value, Add adds to it, Mul multiplies it. Mul isn't a percentage - the multiplier is (Offset + Weight x input) / 1000, which is 0 wherever Offset + Weight x input = 0. With the default Offset of 0, that's when the input is centered, so a Mul rule left at Offset 0 only passes earlier rules' output through near full stick and squeezes it out near center. Give a Mul rule an Offset of 1000 instead if you want it to act as a neutral (1.0x, no change) multiplier when its input is centered, using Weight to control how far the input can trim it away from that."
+    },
     "mixerRuleInput": {
         "message": "Controlled by"
     },
@@ -2953,8 +2956,14 @@
     "mixerRuleOffset": {
         "message": "Offset"
     },
+    "mixerRuleOffsetHelp": {
+        "message": "Added to Weight x input before the result is divided by 1000. For Set/Add this shifts the output by a fixed amount. For Mul it sets the multiplier's baseline: with the default 0, the multiplier is 0 when this rule's input is centered - use 1000 instead if you want the multiplier to be 1.0 (no change) when the input is centered, and let Weight control how far moving the input trims it away from that."
+    },
     "mixerRuleWeight": {
         "message": "Weight"
+    },
+    "mixerRuleWeightHelp": {
+        "message": "Scales the input before Offset is added and the result divided by 1000 to get the rule's actual contribution. For Set/Add, 1000 is a full 1:1 scale. For Mul, it controls how far the input pushes the multiplier away from its Offset baseline."
     },
     "mixerRuleDeleteHelp": {
         "message": "Remove this rule"
@@ -3240,6 +3249,9 @@
     },
     "mixerOverrideSlider": {
         "message": ""
+    },
+    "mixerOverridePosition": {
+        "message": "Position"
     },
     "mixerOverrideSliderLeftLabel1": {
         "message": "Left"

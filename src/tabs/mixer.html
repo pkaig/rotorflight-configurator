@@ -467,9 +467,18 @@
                                         <th i18n="mixerRuleIndex"></th>
                                         <th i18n="mixerRuleOutput"></th>
                                         <th i18n="mixerRuleInput"></th>
-                                        <th i18n="mixerRuleOper"></th>
-                                        <th i18n="mixerRuleOffset"></th>
-                                        <th i18n="mixerRuleWeight"></th>
+                                        <th>
+                                            <span i18n="mixerRuleOper"></span>
+                                            <div class="helpicon cf_tip" i18n_title="mixerRuleOperHelp"></div>
+                                        </th>
+                                        <th>
+                                            <span i18n="mixerRuleOffset"></span>
+                                            <div class="helpicon cf_tip" i18n_title="mixerRuleOffsetHelp"></div>
+                                        </th>
+                                        <th>
+                                            <span i18n="mixerRuleWeight"></span>
+                                            <div class="helpicon cf_tip" i18n_title="mixerRuleWeightHelp"></div>
+                                        </th>
                                         <th class="mixerRuleActionsCell" i18n="mixerRuleActions"></th>
                                     </tr>
                                 </thead>
@@ -525,6 +534,39 @@
                         </thead>
                         <tbody>
                             <!-- ROWS GENERATED HERE -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mixerDynamicOverrideAxis">
+                    <table class="mixerDynamicOverrideTable">
+                        <colgroup>
+                            <!-- Explicit columns rather than relying on
+                                 table-layout: fixed's "size from the first
+                                 row's cells" rule, which real browsers
+                                 apply inconsistently once rowspan is
+                                 involved (the Position rowspan cell only
+                                 physically appears in each group's first
+                                 row). -->
+                            <col class="mixerDynamicOverrideEnableCol">
+                            <col class="mixerDynamicOverrideNameCol">
+                            <col class="mixerDynamicOverrideValueCol">
+                            <col class="mixerDynamicOverrideSliderCol">
+                            <col class="mixerDynamicOverridePositionCol">
+                        </colgroup>
+                        <thead>
+                            <tr class="trhead">
+                                <th i18n="mixerOverrideEnable"></th>
+                                <th i18n="mixerRuleInput"></th>
+                                <th i18n="mixerOverrideValue"></th>
+                                <th i18n="mixerOverrideSlider"></th>
+                                <th i18n="mixerOverridePosition"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- ROWS GENERATED HERE: one row per rule input,
+                                 grouped by output - the output name and live
+                                 position cells span every row in that
+                                 output's group. -->
                         </tbody>
                     </table>
                 </div>
@@ -637,6 +679,57 @@
                     <div class="mixerOverrideSliderLeftLabel"></div>
                     <div class="mixerOverrideSliderRightLabel"></div>
                     <div class="mixerOverrideSlider pips-range"></div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="mixerDynamicOverrideTemplate">
+        <tbody>
+            <tr class="mixerDynamicOverrideRow">
+                <td class="mixerDynamicOverrideEnableCell">
+                    <div class="mixerOverrideEnable">
+                        <input type="checkbox" class="toggle"/>
+                    </div>
+                </td>
+                <td class="mixerDynamicOverrideNameCell">
+                    <span class="mixerOverrideName"></span>
+                </td>
+                <td class="mixerDynamicOverrideValueCell">
+                    <div class="mixerOverrideInput">
+                        <input type="number" value="0"/>
+                    </div>
+                </td>
+                <td class="mixerDynamicOverrideSliderCell">
+                    <div class="mixerOverrideSlider pips-range"></div>
+                </td>
+                <td class="mixerDynamicOverridePositionCell">
+                    <div class="mixerOutputPositionContent">
+                        <div class="mixerOutputIconColumn">
+                            <svg class="mixerOutputPositionIcon" viewBox="0 0 64 64" width="84" height="84" aria-hidden="true">
+                                <rect x="0" y="24" width="12" height="16" rx="3" class="mixerOutputIconTab"></rect>
+                                <rect x="52" y="24" width="12" height="16" rx="3" class="mixerOutputIconTab"></rect>
+                                <circle cx="6" cy="29" r="1.6" class="mixerOutputIconHole"></circle>
+                                <circle cx="6" cy="35" r="1.6" class="mixerOutputIconHole"></circle>
+                                <circle cx="58" cy="29" r="1.6" class="mixerOutputIconHole"></circle>
+                                <circle cx="58" cy="35" r="1.6" class="mixerOutputIconHole"></circle>
+                                <rect x="10" y="18" width="44" height="28" rx="6" class="mixerOutputIconBody"></rect>
+                                <rect x="15" y="23" width="34" height="18" rx="4" class="mixerOutputIconLid"></rect>
+                                <circle cx="17" cy="23" r="1.5" class="mixerOutputIconScrew"></circle>
+                                <circle cx="47" cy="23" r="1.5" class="mixerOutputIconScrew"></circle>
+                                <circle cx="17" cy="41" r="1.5" class="mixerOutputIconScrew"></circle>
+                                <circle cx="47" cy="41" r="1.5" class="mixerOutputIconScrew"></circle>
+                                <g class="mixerOutputIconArm">
+                                    <rect x="29" y="10" width="6" height="22" rx="3" class="mixerOutputIconHorn"></rect>
+                                    <circle cx="32" cy="12" r="3" class="mixerOutputIconBall"></circle>
+                                </g>
+                                <circle cx="32" cy="32" r="5" class="mixerOutputIconShaft"></circle>
+                                <circle cx="32" cy="32" r="2" class="mixerOutputIconShaftDot"></circle>
+                            </svg>
+                            <span class="mixerOutputPositionLabel"></span>
+                        </div>
+                        <span class="mixerOutputPositionValue"></span>
+                    </div>
                 </td>
             </tr>
         </tbody>

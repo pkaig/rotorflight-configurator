@@ -135,27 +135,6 @@ export const Mixer = {
                 a.offset == 0 );
     },
 
-    isNullMixer : function (a) {
-        const self = this;
-
-        for (let i=0; i<a.length; i++)
-            if (!self.isNullRule(a[i]))
-                return false;
-
-        return true;
-    },
-
-    compareMixer : function (a, b, cnt)
-    {
-        const self = this;
-
-        for (let i=0; i<cnt; i++)
-            if (!self.compareRule(a[i],b[i]))
-                return false;
-
-        return true;
-    },
-
     cloneInput : function (a)
     {
         return Object.assign({}, a);

@@ -261,6 +261,241 @@
     margin: 4px 0 0;
 }
 
+.tab-mixer .mixerDynamicOverrideTable {
+    width: 100%;
+    border: 0;
+    border-collapse: collapse;
+    margin-top: 2px;
+    /* Fixed layout with explicit percentages (below) so the slider
+       column actually gets the bulk of the row's width, rather than
+       auto-layout dividing space up based on the other columns' content. */
+    table-layout: fixed;
+}
+
+.tab-mixer .mixerDynamicOverrideTable .trhead {
+    color: var(--quietText);
+    background-color: var(--button-background);
+    text-align: center;
+    font-size: 11px;
+    line-height: 16px;
+    height: 22px;
+    border-top: 1px solid var(--boxBackground);
+}
+
+.tab-mixer .mixerDynamicOverrideTable td {
+    padding: 6px 5px 7px 5px;
+    border: 1px solid var(--subtleAccent);
+}
+
+/* Column widths: declared on <col> (see the table's <colgroup>), not the
+   cells - table-layout: fixed's "size from the first row's cells" rule
+   applies inconsistently across browsers once rowspan is involved, since
+   the Position rowspan cell only physically appears in each group's first
+   row. <col> widths apply per column regardless of which cells happen to
+   be present in any given row. */
+.tab-mixer .mixerDynamicOverrideEnableCol {
+    width: 5%;
+}
+
+.tab-mixer .mixerDynamicOverrideNameCol {
+    width: 9%;
+}
+
+.tab-mixer .mixerDynamicOverrideValueCol {
+    width: 6%;
+}
+
+.tab-mixer .mixerDynamicOverrideSliderCol {
+    width: 60%;
+}
+
+.tab-mixer .mixerDynamicOverridePositionCol {
+    width: 20%;
+}
+
+/* td.<class> (not just .<class>) on all of these - the general
+   ".tab-mixer .mixerDynamicOverrideTable td" padding rule above has two
+   classes plus a tag, which otherwise outranks a plain two-class
+   selector here and silently wins the padding/alignment properties these
+   are meant to override. */
+
+/* Enable/Name/Value default to the browser's normal table-cell centering,
+   which centers against the WHOLE row's height - but each group-end row is
+   much taller than the others (it alone reserves room for the visible tick
+   labels below its slider), so that centering point drifts well below the
+   slider's own handle. .mixerOverrideSlider's fixed 20px margin-top (kept
+   for the stabilized axes, where it makes room for a left/right label
+   above the bar) is the one part of the slider cell's layout that isn't
+   affected by row height, so top-aligning these three cells and matching
+   that same 26px (6px cell padding + the slider's 20px margin) offset
+   lines their controls up with the bar/handle regardless of how tall the
+   row ends up being. */
+.tab-mixer td.mixerDynamicOverrideEnableCell {
+    text-align: center;
+    vertical-align: top;
+    padding-top: 26px;
+}
+
+.tab-mixer td.mixerDynamicOverrideNameCell {
+    text-align: left;
+    vertical-align: top;
+    padding-top: 26px;
+}
+
+.tab-mixer .mixerDynamicOverrideNameCell span {
+    font-weight: bold;
+}
+
+.tab-mixer td.mixerDynamicOverrideValueCell {
+    vertical-align: top;
+    padding-top: 26px;
+}
+
+.tab-mixer td.mixerDynamicOverrideSliderCell {
+    padding: 6px 22px;
+    vertical-align: top;
+}
+
+.tab-mixer td.mixerDynamicOverridePositionCell {
+    /* vertical-align: middle (not display: flex on the cell itself) is
+       what actually centers a rowspan cell's content across its full
+       spanned height - flex changes the cell's display type away from
+       table-cell, which breaks that native centering and anchors the
+       content to the top of the span instead. The icon+value pairing is
+       centered horizontally by the inner .mixerOutputPositionContent
+       instead, which flex applies to safely. */
+    vertical-align: middle;
+    text-align: center;
+    font-weight: normal;
+    font-variant-numeric: tabular-nums;
+    border-right: 0;
+}
+
+.tab-mixer .mixerOutputPositionContent {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The label lives in its own column with the icon (not alongside the
+   value) so it centers under the servo body itself rather than under the
+   wider icon+value pairing. */
+.tab-mixer .mixerOutputIconColumn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* The icon's own viewBox reserves empty space below the servo body
+   (room for the tabs' lower mounting holes to breathe), so a 0 gap here
+   still leaves a visible margin - pull the label up to sit right under
+   the body instead of floating below that built-in whitespace. */
+.tab-mixer .mixerOutputPositionLabel {
+    margin-top: -20px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+/* The rowspan cells (Output, Position) always keep their own full border -
+   they span the whole group by definition. The ordinary per-row cells in
+   between would otherwise get a border between every rule sharing that
+   group; group-start/group-end mark which row's cells should carry the
+   group's outer top/bottom edge, with none between them. */
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverride .mixerDynamicOverrideEnableCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverride .mixerDynamicOverrideNameCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverride .mixerDynamicOverrideValueCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverride .mixerDynamicOverrideSliderCell {
+    border-top: none;
+    border-bottom: none;
+}
+
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupStart .mixerDynamicOverrideEnableCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupStart .mixerDynamicOverrideNameCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupStart .mixerDynamicOverrideValueCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupStart .mixerDynamicOverrideSliderCell {
+    border-top: 1px solid var(--subtleAccent);
+}
+
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupEnd .mixerDynamicOverrideEnableCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupEnd .mixerDynamicOverrideNameCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupEnd .mixerDynamicOverrideValueCell,
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupEnd .mixerDynamicOverrideSliderCell {
+    border-bottom: 1px solid var(--subtleAccent);
+}
+
+/* Every rule's slider keeps its tick marks (.noUi-marker) as a visual
+   reference on its own, but only the group's last (bottom-most) rule
+   shows the numeric labels (.noUi-value) underneath them - repeating the
+   same 1000-2000 scale text under every stacked rule would just be
+   redundant clutter. */
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverride:not(.mixerDynamicOverrideGroupEnd) .noUi-value {
+    display: none;
+}
+
+/* Only the group-end row's pips render their .noUi-value label text below
+   the tick marks, so only that row needs the extra clearance for it - the
+   other stacked rows' pips stay marker-only and fit in the normal padding.
+   This isn't just cosmetic headroom: .mixerOverrideSection (the table's
+   ancestor) sets overflow-y: hidden so its overflow-x: auto scrollbar
+   trick doesn't also grow a vertical one, which means anything an
+   absolutely-positioned .noUi-value renders past this container's normal-
+   flow height gets silently clipped instead of just overlapping the row
+   below. Every row except the table's last has later sibling rows to
+   supply that flow height "for free"; the very last row doesn't, so its
+   padding has to reserve enough room on its own for the label to render
+   inside the container's box rather than past it. */
+.tab-mixer .mixerDynamicOverrideTable tr.mixerDynamicOverrideGroupEnd td.mixerDynamicOverrideSliderCell {
+    padding-bottom: 40px;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconTab {
+    fill: var(--subtleAccent);
+    stroke: var(--quietText);
+    stroke-width: 1;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconHole {
+    fill: var(--boxBackground);
+    stroke: var(--quietText);
+    stroke-width: 0.75;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconBody {
+    fill: var(--boxBackground);
+    stroke: var(--quietText);
+    stroke-width: 1.5;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconLid {
+    fill: var(--subtleAccent);
+    opacity: 0.5;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconScrew {
+    fill: var(--quietText);
+    opacity: 0.6;
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconShaft {
+    fill: var(--defaultText);
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconShaftDot {
+    fill: var(--boxBackground);
+}
+
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconHorn,
+.tab-mixer .mixerOutputPositionIcon .mixerOutputIconBall {
+    fill: var(--accent);
+    stroke: var(--defaultText);
+    stroke-width: 0.75;
+}
+
+.tab-mixer .mixerOutputPositionValue {
+    min-width: 3.5em;
+    text-align: right;
+}
+
 .tab-mixer .customRules {
     /* .gui_box (main.css) floats itself with a percentage width. Every
        other section on this page either lives inside a flex item
